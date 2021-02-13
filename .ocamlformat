@@ -1,0 +1,5 @@
+align-constructors-decl = true
+align-variants-decl = true
+break-separators=before
+dock-collection-brackets = false
+type-decl = compact

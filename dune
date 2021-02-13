@@ -1,0 +1,9 @@
+(executable
+ (name main)
+ (modules main ast signals inference proofctx verifier)
+ (preprocess
+  (pps ppx_deriving.show)))
+
+(env
+ (dev
+  (flags (:standard))))
