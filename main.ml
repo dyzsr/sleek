@@ -1,45 +1,117 @@
-let _ = Ast.Bottom
-
-let _ = Inference.first
-
-let _ = Verifier.verify_specification
-
-let _ = Proofctx.empty
-
 let test =
   let open Ast in
   let open Signals in
   [ Spec
-      (Entailment { lhs = Signal (make [ "A" ]); rhs = Signal (make []) }, true)
-  ; Spec
-      ( Entailment { lhs = Signal (make [ "A" ]); rhs = Signal (make [ "A" ]) }
+      ( Entailment { lhs = (True, Bottom); rhs = (True, Instant (make [])) }
       , true )
   ; Spec
-      (Entailment { lhs = Signal (make []); rhs = Signal (make [ "A" ]) }, false)
-  ; Spec
       ( Entailment
-          { lhs = Sequence (Signal (make [ "A" ]), Signal (make [ "B" ]))
-          ; rhs = Sequence (Signal (make [ "A" ]), Signal (make [ "B" ]))
+          { lhs = (True, Instant (make [ "A" ]))
+          ; rhs = (True, Instant (make []))
           }
       , true )
   ; Spec
       ( Entailment
-          { lhs = Union (Signal (make [ "A" ]), Signal (make [ "B" ]))
-          ; rhs = Signal (make [ "A" ])
+          { lhs = (True, Instant (make [ "A" ]))
+          ; rhs = (True, Instant (make [ "A" ]))
+          }
+      , true )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Instant (make []))
+          ; rhs = (True, Instant (make [ "A" ]))
           }
       , false )
   ; Spec
       ( Entailment
-          { lhs = Signal (make [ "A" ])
-          ; rhs = Union (Signal (make [ "A" ]), Signal (make [ "B" ]))
+          { lhs =
+              (True, Sequence (Instant (make [ "A" ]), Instant (make [ "B" ])))
+          ; rhs =
+              (True, Sequence (Instant (make [ "A" ]), Instant (make [ "B" ])))
           }
       , true )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Instant (make [ "A" ]))
+          ; rhs =
+              (True, Sequence (Instant (make [ "A" ]), Instant (make [ "B" ])))
+          }
+      , false )
+  ; Spec
+      ( Entailment
+          { lhs =
+              (True, Sequence (Instant (make [ "A" ]), Instant (make [ "B" ])))
+          ; rhs = (True, Instant (make [ "A" ]))
+          }
+      , false )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Union (Instant (make [ "A" ]), Instant (make [ "B" ])))
+          ; rhs = (True, Instant (make [ "A" ]))
+          }
+      , false )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Instant (make [ "A" ]))
+          ; rhs = (True, Union (Instant (make [ "A" ]), Instant (make [ "B" ])))
+          }
+      , true )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Instant (make [ "A"; "B" ]))
+          ; rhs = (True, Instant (make [ "A" ]))
+          }
+      , true )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Instant (make [ "A" ]))
+          ; rhs = (True, Instant (make [ "A"; "B" ]))
+          }
+      , false )
+  ; Spec
+      ( Entailment
+          { lhs =
+              ( True
+              , Union
+                  ( Sequence (Instant (make [ "A" ]), Instant (make [ "B" ]))
+                  , Sequence (Instant (make [ "C" ]), Instant (make [ "D" ])) )
+              )
+          ; rhs =
+              ( True
+              , Union
+                  ( Sequence (Instant (make [ "A" ]), Instant (make [ "B" ]))
+                  , Sequence (Instant (make [ "C" ]), Instant (make [ "D" ])) )
+              )
+          }
+      , true )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Kleene (Instant (make [ "A" ])))
+          ; rhs =
+              ( True
+              , Kleene (Union (Instant (make [ "A" ]), Instant (make [ "B" ])))
+              )
+          }
+      , true )
+  ; Spec
+      ( Entailment
+          { lhs = (True, Instant (make [ "A" ]))
+          ; rhs = (True, Kleene (Instant (make [ "A" ])))
+          }
+      , true )
+  ; Spec
+      ( Entailment { lhs = (True, Instant (make [ "A" ])); rhs = (True, Bottom) }
+      , false )
   ]
+;;
 
 let () =
   List.iter
     (fun case ->
-      Ast.show_specification case |> print_endline;
-      Verifier.verify_specification case |> print_endline;
-      ())
+      Printf.printf "Case:      %s\n" (Ast.show_spec case);
+      let verdict, history = Verifier.verify_spec case in
+      Printf.printf "Verify:\n%s\n" (Verifier.show_history history);
+      Printf.printf "Verdict:   %s\n" verdict;
+      print_newline ())
     test
+;;

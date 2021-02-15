@@ -7,5 +7,6 @@ let add (a, b) (ctx : 'a t) : 'a t =
   :: List.map
        (fun x -> (a, x))
        (List.map snd (List.filter (fun (x, _) -> b = x) ctx))
+;;
 
 let exists v (ctx : 'a t) = List.exists (( = ) v) ctx

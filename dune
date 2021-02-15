@@ -1,8 +1,6 @@
 (executable
  (name main)
- (modules main ast signals inference proofctx verifier)
- (preprocess
-  (pps ppx_deriving.show)))
+ (modules main ast signals inference proofctx verifier))
 
 (env
  (dev

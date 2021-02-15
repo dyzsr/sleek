@@ -1,4 +1,6 @@
-type t [@@deriving show]
+type t
+
+val show : t -> string
 
 val empty : t
 

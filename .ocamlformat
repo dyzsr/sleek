@@ -1,5 +1,7 @@
-align-constructors-decl = true
-align-variants-decl = true
+align-constructors-decl=true
+align-variants-decl=true
 break-separators=before
-dock-collection-brackets = false
-type-decl = compact
+dock-collection-brackets=false
+if-then-else=keyword-first
+let-binding-spacing=double-semicolon
+type-decl=compact
