@@ -30,11 +30,11 @@ let show_effects (pure, instants) =
 type entailment = Entailment of { lhs : effects; rhs : effects }
 
 let show_entailment (Entailment { lhs; rhs }) =
-  show_effects lhs ^ "  ⊑  " ^ show_effects rhs
+  "\027[36m" ^ show_effects lhs ^ "  ⊑  " ^ show_effects rhs ^ "\027[0m"
 ;;
 
 type spec = Spec of entailment * bool
 
 let show_spec (Spec (entailment, assertion)) =
-  show_entailment entailment ^ " : " ^ string_of_bool assertion
+  show_entailment entailment ^ " \027[35m: " ^ string_of_bool assertion ^ "\027[0m"
 ;;

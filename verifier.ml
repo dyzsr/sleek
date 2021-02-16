@@ -17,7 +17,7 @@ let show_history hist =
       []
       |> List.fold_right
            (fun (name, entailment) acc ->
-             Printf.sprintf "\027[33m%10s \027[35m⎪\027[0m  %s%s" name
+             Printf.sprintf "\027[33m%10s \027[35m│\027[0m  %s%s" name
                (get_prefix ())
                (Ast.show_entailment entailment)
              :: acc)
@@ -27,8 +27,8 @@ let show_history hist =
               (fun i x ->
                 let prefix' = get_prefix () in
                 if i = 0
-                then loop (prefix' ^ "  ") (prefix' ^ "└─") x
-                else loop (prefix' ^ "⎪ ") (prefix' ^ "├─") x)
+                then loop (prefix' ^ "   ") (prefix' ^ "└──") x
+                else loop (prefix' ^ "│  ") (prefix' ^ "├──") x)
               hist.unfoldings)
       |> List.rev |> String.concat "\n"
     in
@@ -157,6 +157,11 @@ let verify_entailment (Ast.Entailment { lhs; rhs }) =
 let verify_spec (Ast.Spec (entailment, assertion)) =
   let verdict, history = verify_entailment entailment in
   if verdict == assertion
-  then ("Correct", history)
-  else (Printf.sprintf "Incorrect, got:%b, expect:%b" verdict assertion, history)
+  then ("\027[32mCorrect\027[0m", history)
+  else
+    ( Printf.sprintf
+        "\027[31mIncorrect\027[0m  got: \027[34m%b\027[0m  expect: \
+         \027[34m%b\027[0m"
+        verdict assertion
+    , history )
 ;;

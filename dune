@@ -1,6 +1,13 @@
+(ocamllex
+ (modules lexer))
+
+(menhir
+ (modules parser)
+ (flags --explain --dump))
+
 (executable
  (name main)
- (modules main ast signals inference proofctx verifier))
+ (modules main lexer parser syntax ast signals inference proofctx verifier))
 
 (env
  (dev
