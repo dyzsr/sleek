@@ -1,49 +1,47 @@
-type 'a set = 'a list
-
-let union (a : 'a set) (b : 'a set) = a @ b
-
-let forall (f : 'a -> bool) (s : 'a set) : bool =
-  List.fold_left (fun acc x -> acc && f x) true s
-;;
-
 let rec nullable : Ast.instants -> bool = function
   | Bottom -> false
   | Empty -> true
   | Instant _ -> false
   | Sequence (es1, es2) -> nullable es1 && nullable es2
   | Union (es1, es2) -> nullable es1 || nullable es2
+  | Parallel (es1, es2) -> nullable es1 && nullable es2
   | Kleene _ -> true
 ;;
 
-let rec first : Ast.effects -> (Signals.t * Ast.pure) set = function
-  | _, Bottom -> []
-  | _, Empty -> []
-  | pure, Instant s -> [ (s, pure) ]
-  | pure, Sequence (es1, es2) when nullable es1 ->
-      union (first (pure, es1)) (first (pure, es2))
-  | pure, Sequence (es1, _) -> first (pure, es1)
-  | pure, Union (es1, es2) -> union (first (pure, es1)) (first (pure, es2))
-  | pure, Kleene es -> first (pure, es)
+let rec first : Ast.instants -> Signals.set = function
+  | Bottom -> Signals.empty
+  | Empty -> Signals.empty
+  | Instant s -> Signals.from s
+  | Sequence (es1, es2) when nullable es1 -> Signals.union (first es1) (first es2)
+  | Sequence (es1, _) -> first es1
+  | Union (es1, es2) -> Signals.union (first es1) (first es2)
+  | Parallel (es1, es2) -> Signals.zip (first es1) (first es2)
+  | Kleene es -> first es
 ;;
 
-let rec partial_deriv ((i, lpure) : Signals.t * Ast.pure) :
-    Ast.effects -> Ast.effects = function
-  | _, Bottom -> (False, Bottom)
-  | _, Empty -> (False, Bottom)
-  | rpure, Instant j when Signals.(i |- j) -> (rpure, Empty)
-  | _, Instant _ -> (False, Bottom)
-  | rpure, Sequence (es1, es2) when nullable es1 ->
+let rec partial_deriv : Signals.t * Ast.pure -> Ast.effects -> Ast.effects =
+ fun (i, lpure) (rpure, rhs) ->
+  match rhs with
+  | Bottom -> (False, Bottom)
+  | Empty -> (False, Bottom)
+  | Instant j when Signals.(i |- j) -> (rpure, Empty)
+  | Instant _ -> (False, Bottom)
+  | Sequence (es1, es2) when nullable es1 ->
       let _, deriv1 = partial_deriv (i, lpure) (rpure, es1)
       and _, deriv2 = partial_deriv (i, lpure) (rpure, es2) in
       (rpure, Union (Sequence (deriv1, es2), deriv2))
-  | rpure, Sequence (es1, es2) ->
+  | Sequence (es1, es2) ->
       let _, deriv1 = partial_deriv (i, lpure) (rpure, es1) in
       (rpure, Sequence (deriv1, es2))
-  | rpure, Union (es1, es2) ->
+  | Union (es1, es2) ->
       let _, deriv1 = partial_deriv (i, lpure) (rpure, es1)
       and _, deriv2 = partial_deriv (i, lpure) (rpure, es2) in
       (rpure, Union (deriv1, deriv2))
-  | rpure, Kleene es ->
+  | Parallel (es1, es2) ->
+      let _, deriv1 = partial_deriv (i, lpure) (rpure, es1) in
+      let _, deriv2 = partial_deriv (i, lpure) (rpure, es2) in
+      (rpure, Parallel (deriv1, deriv2))
+  | Kleene es ->
       let _, deriv = partial_deriv (i, lpure) (rpure, es) in
       (rpure, Sequence (deriv, Kleene es))
 ;;

@@ -1,7 +1,7 @@
-type 'a t
+type t
 
-val empty : 'a t
+val empty : t
 
-val add : 'a * 'a -> 'a t -> 'a t
+val add : Ast.entailment -> t -> t
 
-val exists : 'a * 'a -> 'a t -> bool
+val exists : Ast.entailment -> t -> bool

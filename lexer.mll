@@ -21,6 +21,7 @@ rule lex = parse
   | "&&"                { AND }
   | "\\/"               { OR }
   | "||"                { OR }
+  | "//"                { PAR }
   | "."                 { DOT }
   | ","                 { COMMA }
   | "^*"                { KLEENE }
@@ -31,6 +32,7 @@ rule lex = parse
   | "{"                 { LBRACE }
   | "}"                 { RBRACE }
   | "_|_"               { BOTTOM }
+  | "bot"               { BOTTOM }
   | "emp"               { EMPTY }
   | upper alpha* as e   { EVENT e }
   | eof                 { EOF }

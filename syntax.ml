@@ -1,27 +1,26 @@
-exception Syntax_error of string
-
-let pos_to_string Lexing.{ pos_lnum = lnum; pos_bol = bol; pos_cnum = cnum; _ }
-    =
-  let lstr = "line " ^ string_of_int lnum in
-  let cstr = "column " ^ string_of_int (cnum - bol) in
-  lstr ^ ", " ^ cstr
+let error_message text Lexing.{ pos_lnum; pos_bol; pos_cnum; _ } =
+  let col = pos_cnum - pos_bol in
+  let lines = String.split_on_char '\n' text in
+  let rec aux n lines =
+    match (n, lines) with
+    | 0, lines -> (String.make col ' ' ^ "^") :: lines
+    | n, line :: lines -> line :: aux (n - 1) lines
+    | _ -> failwith "invalid position"
+  in
+  aux pos_lnum lines |> String.concat "\n"
 ;;
 
-let lexer lexbuf =
-  let tok = Lexer.lex lexbuf in
-  (* let () = print_endline ("token: " ^ token_to_string tok) in *)
-  tok
+let lexer lexbuf = Lexer.lex lexbuf
+
+let parse parser text =
+  let lexbuf = Lexing.from_string text in
+  try parser lexer lexbuf
+  with _ ->
+    let error = error_message text (Lexing.lexeme_start_p lexbuf) in
+    Printf.eprintf "\027[31m%s\027[0m\n" error;
+    failwith "Syntax error"
 ;;
 
-let parse lexer lexbuf =
-  try Parser.spec lexer lexbuf
-  with Parser.Error ->
-    let token = Lexing.lexeme lexbuf in
-    let start_p = pos_to_string (Lexing.lexeme_start_p lexbuf) in
-    let error_string = start_p ^ ": token '" ^ token ^ "'" in
-    raise (Syntax_error error_string)
-;;
+let parse_specification text = parse Parser.specification text
 
-let parse_from_string str =
-  let lexbuf = Lexing.from_string str in
-  parse lexer lexbuf
+let parse_entailment text = parse Parser.only_entailment text
