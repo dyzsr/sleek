@@ -1,7 +1,9 @@
+align-cases=true
 align-constructors-decl=true
 align-variants-decl=true
 break-separators=before
 dock-collection-brackets=false
+exp-grouping=preserve
 if-then-else=fit-or-vertical
 let-binding-spacing=double-semicolon
 margin=100

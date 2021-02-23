@@ -11,29 +11,29 @@ let upper = ['A'-'Z']
 (* let alnum = digit | alpha | '_' *)
 
 rule lex = parse
-  | eol                 { Lexing.new_line lexbuf; lex lexbuf }
-  | space               { lex lexbuf }
-  | "True"              { TRUE }
-  | "False"             { FALSE }
-  | "true"              { TRUTH }
-  | "false"             { FALSENESS }
-  | "/\\"               { AND }
-  | "&&"                { AND }
-  | "\\/"               { OR }
-  | "||"                { OR }
-  | "//"                { PAR }
-  | "."                 { DOT }
-  | ","                 { COMMA }
-  | "^*"                { KLEENE }
-  | "|-"                { ENTAIL }
-  | ":"                 { COLON }
-  | "("                 { LPAREN }
-  | ")"                 { RPAREN }
-  | "{"                 { LBRACE }
-  | "}"                 { RBRACE }
-  | "_|_"               { BOTTOM }
-  | "bot"               { BOTTOM }
-  | "emp"               { EMPTY }
-  | upper alpha* as e   { EVENT e }
-  | eof                 { EOF }
-  | _ as l              { raise (Invalid_argument ("character: '" ^ String.make 1 l ^ "'")) }
+  | eol                     { Lexing.new_line lexbuf; lex lexbuf }
+  | space                   { lex lexbuf }
+  | eof                     { EOF }
+  | "True"                  { TRUE }
+  | "False"                 { FALSE }
+  | "true"                  { TRUTH }
+  | "false"                 { FALSENESS }
+  | "/\\"                   { AND }
+  | "&&"                    { AND }
+  | "\\/"                   { OR }
+  | "||"                    { OR }
+  | "//"                    { PAR }
+  | "."                     { DOT }
+  | ","                     { COMMA }
+  | "^*"                    { KLEENE }
+  | "|-"                    { ENTAIL }
+  | ":"                     { COLON }
+  | "("                     { LPAREN }
+  | ")"                     { RPAREN }
+  | "{"                     { LBRACE }
+  | "}"                     { RBRACE }
+  | "_|_"                   { BOTTOM }
+  | "bot"                   { BOTTOM }
+  | "emp"                   { EMPTY }
+  | upper alpha* "?"? as e  { EVENT e }
+  | _ as l                  { raise (Invalid_argument ("character: '" ^ String.make 1 l ^ "'")) }

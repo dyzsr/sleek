@@ -1,5 +1,8 @@
 type history =
-  { mutable iterations : (string * Ast.entailment) list; mutable unfoldings : history list }
+  { first : Signals.t
+  ; mutable iterations : (string * Ast.entailment) list
+  ; mutable unfoldings : history list
+  }
 
 let add_iteration (label, es) hist =
   (* Printf.printf "%s :: %s\n" label (Ast.show_entailment es); *)
@@ -8,8 +11,8 @@ let add_iteration (label, es) hist =
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
 
-let show_history hist =
-  let rec loop spaces prefix hist =
+let show_history ~verbose hist =
+  let rec aux spaces prefix hist =
     let first = ref true in
     let get_prefix () =
       if !first then (
@@ -18,33 +21,45 @@ let show_history hist =
       else
         spaces
     in
-    let output =
-      []
-      |> List.fold_right
-           (fun (name, entailment) acc ->
-             Printf.sprintf "\027[33m%10s \027[35m│\027[0m  %s%s" name (get_prefix ())
-               (Ast.show_entailment entailment)
-             :: acc)
-           hist.iterations
-      |> List.fold_right List.cons
-           (List.mapi
-              (fun i x ->
-                let prefix' = get_prefix () in
-                if i = 0 then
-                  loop (prefix' ^ "  ") (prefix' ^ "└─") x
-                else
-                  loop (prefix' ^ "│ ") (prefix' ^ "├─") x)
-              hist.unfoldings)
-      |> List.rev |> String.concat "\n"
+    let print name entailment =
+      Printf.sprintf "\027[33m%10s \027[35m│\027[0m  %s%s" name (get_prefix ())
+        (Ast.show_entailment entailment)
     in
-    output
+    let show_first =
+      if prefix == "" then
+        List.append []
+      else
+        List.cons
+          (Printf.sprintf "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s\027[0m" "∖"
+             (get_prefix ()) (Signals.show hist.first))
+    in
+    let show_iterations =
+      if verbose then
+        List.fold_right (fun (name, entailment) acc -> print name entailment :: acc) hist.iterations
+      else
+        List.cons
+          (let name, entailment = List.hd hist.iterations in
+           print name entailment)
+    in
+    let show_unfoldings =
+      List.fold_right List.cons
+        (List.mapi
+           (fun i x ->
+             let prefix' = get_prefix () in
+             if i = 0 then
+               aux (prefix' ^ "  ") (prefix' ^ "└─") x
+             else
+               aux (prefix' ^ "│ ") (prefix' ^ "├─") x)
+           hist.unfoldings)
+    in
+    [] |> show_first |> show_iterations |> show_unfoldings |> List.rev |> String.concat "\n"
   in
-  loop "" "" hist
+  aux "" "" hist
 ;;
 
-let show_verification ~case ~no ~verdict ~history =
+let show_verification ~case ~no ~verdict ~verbose ~history =
   Printf.sprintf "\027[1mCase %-5d :\027[0m  %s\n" no (Ast.show_specification case)
-  ^ Printf.sprintf "\027[1mVerify     :\027[0m\n%s\n" (show_history history)
+  ^ Printf.sprintf "\027[1mVerify     :\027[0m\n%s\n" (show_history ~verbose history)
   ^ Printf.sprintf "\027[1mVerdict    :\027[0m  %s\n" verdict
 ;;
 
@@ -92,13 +107,13 @@ let rec normalize_es : Ast.instants -> Ast.instants = function
 ;;
 
 let normalization : Ast.effects -> Ast.effects = function
-  | False, _ -> (False, Bottom)
+  | False, _       -> (False, Bottom)
   | pure, instants -> (pure, normalize_es instants)
 ;;
 
 let verify_entailment (Ast.Entail { lhs; rhs }) =
-  let rec rewrite ctx lhs rhs =
-    let hist = { iterations = []; unfoldings = [] } in
+  let rec aux ctx first lhs rhs =
+    let hist = { first; iterations = []; unfoldings = [] } in
     let bot_lhs (_, es1) = es1 = Ast.Bottom
     and bot_rhs (_, es2) = es2 = Ast.Bottom
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
@@ -113,29 +128,31 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
       firsts
       |> Signals.forall (fun x ->
              let verdict, sub_hist =
-               rewrite ctx
+               aux ctx x
                  (Inference.partial_deriv (x, lpure) lhs)
                  (Inference.partial_deriv (x, lpure) rhs)
              in
              hist |> add_unfolding sub_hist;
              verdict)
     and normalize lhs rhs =
-      let rec loop es =
+      let rec iter es =
         let es' = normalization es in
         if es = es' then
           es
-        else (* hist |> add_iteration ("NORMAL-LHS", Entail { lhs = es; rhs }); *)
-          loop es'
+        else (
+          hist |> add_iteration ("NORM-LHS", Entail { lhs = es; rhs });
+          iter es')
       in
-      let lhs = loop lhs in
-      let rec loop es =
+      let lhs = iter lhs in
+      let rec iter es =
         let es' = normalization es in
         if es = es' then
           es
-        else (* hist |> add_iteration ("NORMAL-RHS", Entail { lhs; rhs = es }); *)
-          loop es'
+        else (
+          hist |> add_iteration ("NORM-RHS", Entail { lhs; rhs = es });
+          iter es')
       in
-      let rhs = loop rhs in
+      let rhs = iter rhs in
       (lhs, rhs)
     in
     (* Verify *)
@@ -159,7 +176,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
     in
     (verdict, hist)
   in
-  rewrite Proofctx.empty lhs rhs
+  aux Proofctx.empty Signals.null lhs rhs
 ;;
 
 let verify_specification (Ast.Spec (entailment, assertion)) =

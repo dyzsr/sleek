@@ -1,11 +1,11 @@
 let rec nullable : Ast.instants -> bool = function
-  | Bottom -> false
-  | Empty -> true
-  | Instant _ -> false
+  | Bottom              -> false
+  | Empty               -> true
+  | Instant _           -> false
   | Sequence (es1, es2) -> nullable es1 && nullable es2
-  | Union (es1, es2) -> nullable es1 || nullable es2
+  | Union (es1, es2)    -> nullable es1 || nullable es2
   | Parallel (es1, es2) -> nullable es1 && nullable es2
-  | Kleene _ -> true
+  | Kleene _            -> true
 ;;
 
 let rec first : Ast.instants -> Signals.set = function
@@ -24,7 +24,12 @@ let rec partial_deriv : Signals.t * Ast.pure -> Ast.effects -> Ast.effects =
   match rhs with
   | Bottom -> (False, Bottom)
   | Empty -> (False, Bottom)
-  | Instant j when Signals.(i |- j) -> (rpure, Empty)
+  | Instant j when Signals.(i |- j) ->
+      let j' = Signals.subtract j i in
+      if Signals.is_null j' then
+        (rpure, Empty)
+      else
+        (rpure, Instant j')
   | Instant _ -> (False, Bottom)
   | Sequence (es1, es2) when nullable es1 ->
       let _, deriv1 = partial_deriv (i, lpure) (rpure, es1)

@@ -102,7 +102,7 @@ let tests =
   ; "True && ({A}||{D}).{B, E}.({C}//{F})  |-  True && (({A}||{D}).{B, E}.({C}//{F}))^* : true"
   ; "True && (({A}||{D}).{B, E}.({C}//{F}))^*  |-  True && (({A}||{D}).{B, E}.({C}//{F}))^* : true"
   ; "True && (({A}||{D}).{B, E}.({C}//{F}))^*  |-  True && ({A}||{B}||{C}||{D}||{E})^* : true"
-  ; (* Alternate Syntax *)
+  ; (* Alternative Syntax *)
     {| True /\ {A, B}.{A, B}^*  |-  True /\ {A, B}^* : true |}
   ; {| True /\ ({A}.{B})^*      |-  True /\ {A, B}^* : false |}
   ; {| True /\ ({A}.{B})^*      |-  True /\ ({A} || {B})^* : true |}
@@ -112,6 +112,21 @@ let tests =
   ; {| True /\ ({A}.{B})^* // {C}^*  |-  True /\ ({A, C}.{B, C})^* : true   |}
   ; {| True /\ ({A}.{B})^* // ({C} // {D})^*  |-  True /\ ({A, C}.{B, C})^* : true   |}
   ; {| True /\ {A, B} |-  True /\ {A} // {B} // {C} : false   |}
+  ; (* Waiting Signals *)
+    "True && {A?} || {A}  |-  True && {A} : false"
+  ; "True && {A?} // {A}  |-  True && {A} : true"
+  ; "True && {A}   |-  True && {A} || {A?} : true"
+  ; "True && {A}   |-  True && {A?}        : true"
+  ; "True && {A?}  |-  True && {A?}        : true"
+  ; "True && {A?}  |-  True && {A}         : false"
+  ; "True && {A?}.{B} // {A}       |-  True && {A}.{B}     : true"
+  ; "True && {A?}.{B} // {A}.{B}   |-  True && {A}.{B}     : true"
+  ; "True && {A?}.{B} // {A}.{C}   |-  True && {A}.{B, C}  : true"
+  ; "True && {A?}.{B} // {A?}.{C}  |-  True && {A?}.{B, C} : true"
+  ; "True && {B?}.{A} // {X}.{Y}.{B}.{Z}  |-  True && {X}.{Y}.{B}.{A, Z} : true"
+  ; "True && {A?, B?}.{D} // {A}.{B}.{C}  |-  True && {A}.{B}.{C, D} : true"
+  ; "True && {A?, B?}.{D} // {A}.{C}  |-  True && {A}.{B?}.{C, D}    : false"
+  ; "True && {A?, B?}.{D} // {A}.{C}  |-  True && {A}.{C}.{B?}.{D}   : true"
   ]
 ;;
 
@@ -120,6 +135,7 @@ let () =
   |> List.iteri (fun no str ->
          let case = Syntax.parse_specification str in
          let correct, verdict, history = Verifier.verify_specification case in
-         Verifier.show_verification ~case ~no ~verdict ~history |> print_endline;
+         Verifier.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history
+         |> print_endline;
          assert correct)
 ;;
