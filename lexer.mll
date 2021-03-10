@@ -35,5 +35,6 @@ rule lex = parse
   | "_|_"                   { BOTTOM }
   | "bot"                   { BOTTOM }
   | "emp"                   { EMPTY }
-  | upper alpha* "?"? as e  { EVENT e }
-  | _ as l                  { raise (Invalid_argument ("character: '" ^ String.make 1 l ^ "'")) }
+  | "?"                     { QUESTION }
+  | upper alpha* as e       { EVENT e }
+  | _                       { UNKNOWN }

@@ -1,11 +1,15 @@
 type pure = True | False
 
-let show_pure = function True -> "True" | False -> "False"
+let show_pure = function
+  | True  -> "True"
+  | False -> "False"
+;;
 
 type instants =
   | Bottom
   | Empty
   | Instant  of Signals.t
+  | Await    of Signals.t
   | Sequence of instants * instants
   | Union    of instants * instants
   | Parallel of instants * instants
@@ -18,6 +22,7 @@ let show_instants es =
     | Bottom              -> "⏊ "
     | Empty               -> "𝝐"
     | Instant i           -> Signals.show i
+    | Await i             -> Signals.show i
     | Sequence (es1, es2) ->
         Printf.sprintf "%s · %s" (aux 0 30 es1) (aux 30 0 es2)
         |> if lprec > 30 || rprec >= 30 then enclose else nothing

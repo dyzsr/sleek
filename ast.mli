@@ -6,6 +6,7 @@ type instants =
   | Bottom
   | Empty
   | Instant  of Signals.t
+  | Await    of Signals.t
   | Sequence of instants * instants
   | Union    of instants * instants
   | Parallel of instants * instants

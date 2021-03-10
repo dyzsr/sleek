@@ -1,6 +1,7 @@
 align-cases=true
 align-constructors-decl=true
 align-variants-decl=true
+break-cases=toplevel
 break-separators=before
 dock-collection-brackets=false
 exp-grouping=preserve

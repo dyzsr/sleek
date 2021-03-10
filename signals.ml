@@ -1,27 +1,45 @@
-(* is the event waiting? *)
-let waiting e =
-  let n = String.length e in
-  if n < 2 then false else e.[n - 1] = '?'
+type event = Present of string | Waiting of string
+
+let show_event = function
+  | Present name -> name
+  | Waiting name -> name ^ "?"
 ;;
 
-(* is the event present? *)
-let present e = not (waiting e)
+let present name = Present name
 
-(* get the present event from a waiting event *)
-let get_present e = String.sub e 0 (String.length e - 1)
+let waiting name = Waiting name
+
+let is_waiting = function
+  | Waiting _ -> true
+  | _         -> false
+;;
+
+let is_present = function
+  | Present _ -> true
+  | _         -> false
+;;
+
+let get_present = function
+  | Waiting name -> Present name
+  | e            -> e
+;;
 
 (* Type of signals *)
-type t = string list
+type t = event list
 
 let show = function
-  | []     -> "{}"
-  | h :: l -> "{" ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) h l ^ "}"
+  | []                   -> "{}"
+  | [ (Waiting _ as e) ] -> show_event e
+  | l                    -> "{" ^ String.concat ", " (List.map show_event l) ^ "}"
 ;;
 
 (* Null signal *)
 let null = []
 
-let is_null s = s = []
+let is_null = function
+  | [] -> true
+  | _  -> false
+;;
 
 (* Make new signal from name list *)
 let make lst = List.sort_uniq compare lst
@@ -29,29 +47,25 @@ let make lst = List.sort_uniq compare lst
 (* Merge signals `a` and `b` into a new one *)
 let merge a b =
   let c = List.sort_uniq compare (a @ b) in
-  c |> List.filter (fun x -> present x || not (List.exists (( = ) (get_present x)) c))
+  c |> List.filter (fun x -> is_present x || not (List.exists (( = ) (get_present x)) c))
 ;;
-
-let all_waiting s = List.for_all waiting s
 
 (* Is `b` included in `a`? *)
 let ( |- ) a b =
   b
   |> List.fold_left
        (fun res y ->
-         res && a |> List.exists (fun x -> if waiting y then x = y || x = get_present y else x = y))
+         res
+         &&
+         if is_waiting y then
+           a |> List.exists (fun x -> x = y || x = get_present y)
+         else
+           a |> List.exists (( = ) y))
        true
 ;;
 
-(* Subtract signal `a` from `b`. Must ensure that `a` |- `b` is true *)
-let subtract b a =
-  if all_waiting a then
-    []
-  else
-    b
-    |> List.filter (fun y ->
-           not (a |> List.exists (fun x -> if waiting y then x = get_present y else x = y)))
-;;
+(* split splits a signal into present part and waiting part *)
+let split s = List.partition is_present s
 
 (* Set of signals *)
 type set = t list
@@ -71,8 +85,8 @@ let zip a b = a |> List.fold_left (fun acc x -> acc @ (b |> List.map (fun y -> m
 (* tests *)
 let () =
   assert ([] |- []);
-  assert ([ "A" ] |- []);
-  assert ([ "A" ] |- [ "A" ]);
-  assert ([ "A"; "B" ] |- [ "A" ]);
+  assert ([ present "A" ] |- []);
+  assert ([ present "A" ] |- [ present "A" ]);
+  assert ([ present "A"; present "B" ] |- [ present "A" ]);
   ()
 ;;

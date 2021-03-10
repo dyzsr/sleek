@@ -1,3 +1,4 @@
+%token UNKNOWN
 %token EOF "eof"
 %token TRUE "True" FALSE "False"
 %token TRUTH "true" FALSENESS "false"
@@ -6,6 +7,7 @@
 %token LPAREN "(" RPAREN ")"
 %token LBRACE "{" RBRACE "}"
 %token BOTTOM "_|_" EMPTY "empty"
+%token QUESTION "?"
 %token <string> EVENT "event"
 
 %start specification only_entailment
@@ -43,6 +45,7 @@ instants:
     "_|_"                           { Ast.Bottom }
   | "empty"                         { Ast.Empty }
   | i=instant                       { Ast.Instant i }
+  | i=waiting                       { Ast.Await i }
   | es1=instants "||" es2=instants  { Ast.Union (es1, es2) }
   | es1=instants "."  es2=instants  { Ast.Sequence (es1, es2) }
   | es1=instants "//" es2=instants  { Ast.Parallel (es1, es2) }
@@ -54,7 +57,10 @@ instant:
   | "{" l=event_list "}" { Signals.make l  }
 
 event_list:
-    e="event"                  { [e] }
-  | e="event" "," l=event_list { e :: l }
+    e="event"                  { [ Signals.present e ] }
+  | e="event" "," l=event_list { Signals.present e :: l }
+
+waiting:
+    e="event" "?"  { Signals.make [ Signals.waiting e ] }
 
 %%

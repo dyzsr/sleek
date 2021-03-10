@@ -30,7 +30,7 @@ let show_history ~verbose hist =
         List.append []
       else
         List.cons
-          (Printf.sprintf "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s\027[0m" "∖"
+          (Printf.sprintf "\027[33m%12s \027[35m│\027[0m  %s‣ \027[35m%s\027[0m" "∖"
              (get_prefix ()) (Signals.show hist.first))
     in
     let show_iterations =
@@ -127,11 +127,11 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
       let ctx = ctx |> Proofctx.add (Entail { lhs; rhs }) in
       firsts
       |> Signals.forall (fun x ->
-             let verdict, sub_hist =
-               aux ctx x
-                 (Inference.partial_deriv (x, lpure) lhs)
-                 (Inference.partial_deriv (x, lpure) rhs)
-             in
+             let lhs' = Inference.partial_deriv (x, lpure) lhs in
+             let rhs' = Inference.partial_deriv (x, lpure) rhs in
+             (* fail the verificaiton if no progress on the right hand side *)
+             let rhs' = if rhs = rhs' then Ast.(False, Bottom) else rhs' in
+             let verdict, sub_hist = aux ctx x lhs' rhs' in
              hist |> add_unfolding sub_hist;
              verdict)
     and normalize lhs rhs =
