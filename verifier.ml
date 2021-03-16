@@ -30,7 +30,7 @@ let show_history ~verbose hist =
         List.append []
       else
         List.cons
-          (Printf.sprintf "\027[33m%12s \027[35m│\027[0m  %s‣ \027[35m%s\027[0m" "∖"
+          (Printf.sprintf "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s\027[0m" "∖"
              (get_prefix ()) (Signals.show hist.first))
     in
     let show_iterations =
@@ -47,9 +47,9 @@ let show_history ~verbose hist =
            (fun i x ->
              let prefix' = get_prefix () in
              if i = 0 then
-               aux (prefix' ^ "  ") (prefix' ^ "└─") x
+               aux (prefix' ^ "   ") (prefix' ^ "└──") x
              else
-               aux (prefix' ^ "│ ") (prefix' ^ "├─") x)
+               aux (prefix' ^ "│  ") (prefix' ^ "├──") x)
            hist.unfoldings)
     in
     [] |> show_first |> show_iterations |> show_unfoldings |> List.rev |> String.concat "\n"
@@ -83,6 +83,8 @@ let rec normalize_es : Ast.instants -> Ast.instants = function
   | Sequence (Sequence (es1, es2), es3) -> Sequence (es1, Sequence (es2, es3))
   | Sequence (es, Union (es1, es2)) -> Union (Sequence (es, es1), Sequence (es, es2))
   | Sequence (Union (es1, es2), es) -> Union (Sequence (es1, es), Sequence (es2, es))
+  | Parallel (es, Union (es1, es2)) -> Union (Parallel (es, es1), Parallel (es, es2))
+  | Parallel (Union (es1, es2), es) -> Union (Parallel (es1, es), Parallel (es2, es))
   (* normalize recursively *)
   | Sequence (es1, es2) ->
       let es1' = normalize_es es1 in
@@ -106,7 +108,7 @@ let rec normalize_es : Ast.instants -> Ast.instants = function
   | es -> es
 ;;
 
-let normalization : Ast.effects -> Ast.effects = function
+let normalize : Ast.effects -> Ast.effects = function
   | False, _       -> (False, Bottom)
   | pure, instants -> (pure, normalize_es instants)
 ;;
@@ -117,7 +119,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
     let bot_lhs (_, es1) = es1 = Ast.Bottom
     and bot_rhs (_, es2) = es2 = Ast.Bottom
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
-    and prove ctx lhs rhs =
+    and reoccur ctx lhs rhs =
       if lhs = rhs then
         true
       else
@@ -129,14 +131,12 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
       |> Signals.forall (fun x ->
              let lhs' = Inference.partial_deriv (x, lpure) lhs in
              let rhs' = Inference.partial_deriv (x, lpure) rhs in
-             (* fail the verificaiton if no progress on the right hand side *)
-             let rhs' = if rhs = rhs' then Ast.(False, Bottom) else rhs' in
              let verdict, sub_hist = aux ctx x lhs' rhs' in
              hist |> add_unfolding sub_hist;
              verdict)
-    and normalize lhs rhs =
+    and normal lhs rhs =
       let rec iter es =
-        let es' = normalization es in
+        let es' = normalize es in
         if es = es' then
           es
         else (
@@ -145,7 +145,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
       in
       let lhs = iter lhs in
       let rec iter es =
-        let es' = normalization es in
+        let es' = normalize es in
         if es = es' then
           es
         else (
@@ -156,7 +156,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
       (lhs, rhs)
     in
     (* Verify *)
-    let lhs, rhs = normalize lhs rhs in
+    let lhs, rhs = normal lhs rhs in
     let verdict =
       if bot_lhs lhs then (
         hist |> add_iteration ("Bot-LHS", Entail { lhs; rhs });
@@ -167,7 +167,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
       else if disprove lhs rhs then (
         hist |> add_iteration ("DISPROVE", Entail { lhs; rhs });
         false)
-      else if prove ctx lhs rhs then (
+      else if reoccur ctx lhs rhs then (
         hist |> add_iteration ("REOCCUR", Entail { lhs; rhs });
         true)
       else (

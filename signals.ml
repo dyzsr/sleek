@@ -1,36 +1,21 @@
-type event = Present of string | Waiting of string
+type event = Present of string
 
 let show_event = function
   | Present name -> name
-  | Waiting name -> name ^ "?"
 ;;
 
 let present name = Present name
 
-let waiting name = Waiting name
-
-let is_waiting = function
-  | Waiting _ -> true
-  | _         -> false
-;;
-
 let is_present = function
   | Present _ -> true
-  | _         -> false
-;;
-
-let get_present = function
-  | Waiting name -> Present name
-  | e            -> e
 ;;
 
 (* Type of signals *)
 type t = event list
 
 let show = function
-  | []                   -> "{}"
-  | [ (Waiting _ as e) ] -> show_event e
-  | l                    -> "{" ^ String.concat ", " (List.map show_event l) ^ "}"
+  | [] -> "{}"
+  | l  -> "{" ^ String.concat ", " (List.map show_event l) ^ "}"
 ;;
 
 (* Null signal *)
@@ -45,27 +30,10 @@ let is_null = function
 let make lst = List.sort_uniq compare lst
 
 (* Merge signals `a` and `b` into a new one *)
-let merge a b =
-  let c = List.sort_uniq compare (a @ b) in
-  c |> List.filter (fun x -> is_present x || not (List.exists (( = ) (get_present x)) c))
-;;
+let merge a b = List.sort_uniq compare (a @ b)
 
 (* Is `b` included in `a`? *)
-let ( |- ) a b =
-  b
-  |> List.fold_left
-       (fun res y ->
-         res
-         &&
-         if is_waiting y then
-           a |> List.exists (fun x -> x = y || x = get_present y)
-         else
-           a |> List.exists (( = ) y))
-       true
-;;
-
-(* split splits a signal into present part and waiting part *)
-let split s = List.partition is_present s
+let ( |- ) a b = b |> List.fold_left (fun res y -> res && a |> List.exists (( = ) y)) true
 
 (* Set of signals *)
 type set = t list
@@ -80,7 +48,11 @@ let union a b = a @ b
 
 let forall f s = List.fold_left (fun acc x -> acc && f x) true s
 
-let zip a b = a |> List.fold_left (fun acc x -> acc @ (b |> List.map (fun y -> merge x y))) empty
+let zip a b =
+  a
+  |> List.fold_left (fun acc x -> acc @ (b |> List.map (fun y -> merge x y))) empty
+  |> List.sort_uniq compare
+;;
 
 (* tests *)
 let () =
@@ -88,5 +60,10 @@ let () =
   assert ([ present "A" ] |- []);
   assert ([ present "A" ] |- [ present "A" ]);
   assert ([ present "A"; present "B" ] |- [ present "A" ]);
+  assert (
+    zip [ make [ present "A" ] ] [ make [ present "B" ] ] = [ make [ present "A"; present "B" ] ]);
+  assert (
+    zip [ make []; make [ present "A" ] ] [ make []; make [ present "B" ] ]
+    = [ make []; make [ present "A" ]; make [ present "A"; present "B" ]; make [ present "B" ] ]);
   ()
 ;;

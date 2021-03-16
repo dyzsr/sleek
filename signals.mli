@@ -1,9 +1,11 @@
 (* Type of events *)
 type event
 
+val show_event : event -> string
+
 val present : string -> event
 
-val waiting : string -> event
+val is_present : event -> bool
 
 (* Type of signals *)
 type t
@@ -17,8 +19,6 @@ val is_null : t -> bool
 val make : event list -> t
 
 val ( |- ) : t -> t -> bool
-
-val split : t -> t * t
 
 (* Type of the set of signals *)
 type set = t list

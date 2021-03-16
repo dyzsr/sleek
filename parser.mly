@@ -45,7 +45,7 @@ instants:
     "_|_"                           { Ast.Bottom }
   | "empty"                         { Ast.Empty }
   | i=instant                       { Ast.Instant i }
-  | i=waiting                       { Ast.Await i }
+  | e=waiting                       { Ast.Await e }
   | es1=instants "||" es2=instants  { Ast.Union (es1, es2) }
   | es1=instants "."  es2=instants  { Ast.Sequence (es1, es2) }
   | es1=instants "//" es2=instants  { Ast.Parallel (es1, es2) }
@@ -61,6 +61,6 @@ event_list:
   | e="event" "," l=event_list { Signals.present e :: l }
 
 waiting:
-    e="event" "?"  { Signals.make [ Signals.waiting e ] }
+    e="event" "?"  { Signals.present e }
 
 %%

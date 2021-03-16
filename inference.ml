@@ -13,7 +13,7 @@ let rec first : Ast.instants -> Signals.set = function
   | Bottom -> Signals.empty
   | Empty -> Signals.empty
   | Instant i -> Signals.from i
-  | Await i -> Signals.from i
+  | Await e -> Signals.(union (from null) (from (make [ e ])))
   | Sequence (es1, es2) when nullable es1 -> Signals.union (first es1) (first es2)
   | Sequence (es1, _) -> first es1
   | Union (es1, es2) -> Signals.union (first es1) (first es2)
@@ -26,23 +26,10 @@ let rec partial_deriv : Signals.t * Ast.pure -> Ast.effects -> Ast.effects =
   match rhs with
   | Bottom -> (False, Bottom)
   | Empty -> (False, Bottom)
-  | Instant j ->
-      let presents, _ = Signals.split i in
-      if Signals.(presents |- j) then
-        (rpure, Empty)
-      else
-        (False, Bottom)
-  | Await j ->
-      let presents, waitings = Signals.split i in
-      if Signals.(presents |- j) then
-        (rpure, Empty)
-      else if Signals.(waitings |- j) then
-        if Signals.is_null presents then
-          (rpure, Empty)
-        else
-          (rpure, Await j)
-      else
-        (False, Bottom)
+  | Instant j when Signals.(i |- j) -> (rpure, Empty)
+  | Instant _ -> (False, Bottom)
+  | Await e when Signals.(i |- make [ e ]) -> (rpure, Empty)
+  | Await e -> (rpure, Await e)
   | Sequence (es1, es2) when nullable es1 ->
       let _, deriv1 = partial_deriv (i, lpure) (rpure, es1) in
       let _, deriv2 = partial_deriv (i, lpure) (rpure, es2) in
