@@ -1,13 +1,15 @@
-type history =
-  { first : Signals.t
-  ; mutable iterations : (string * Ast.entailment) list
-  ; mutable unfoldings : history list
-  }
+type history = {
+  first_i : Signals.t;
+  first_pi : Ast.pi;
+  first_t : Ast.term;
+  mutable iterations : (string * Ast.entailment) list;
+  mutable unfoldings : history list;
+}
 
 let add_iteration (label, es) hist =
   (* Printf.printf "%s :: %s\n" label (Ast.show_entailment es); *)
   hist.iterations <- (label, es) :: hist.iterations
-;;
+
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
 
@@ -30,8 +32,10 @@ let show_history ~verbose hist =
         List.append []
       else
         List.cons
-          (Printf.sprintf "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s\027[0m" "∖"
-             (get_prefix ()) (Signals.show hist.first))
+          (Printf.sprintf
+             "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s,\027[33m %s,\027[35m %s\027[0m" "∖"
+             (get_prefix ()) (Signals.show hist.first_i) (Ast.show_pi hist.first_pi)
+             (Ast.show_term hist.first_t))
     in
     let show_iterations =
       if verbose then
@@ -55,67 +59,38 @@ let show_history ~verbose hist =
     [] |> show_first |> show_iterations |> show_unfoldings |> List.rev |> String.concat "\n"
   in
   aux "" "" hist
-;;
+
 
 let show_verification ~case ~no ~verdict ~verbose ~history =
   Printf.sprintf "\027[1mCase %-5d :\027[0m  %s\n" no (Ast.show_specification case)
   ^ Printf.sprintf "\027[1mVerify     :\027[0m\n%s\n" (show_history ~verbose history)
   ^ Printf.sprintf "\027[1mVerdict    :\027[0m  %s\n" verdict
-;;
 
-let rec normalize_es : Ast.instants -> Ast.instants = function
-  | Union (es, Bottom) -> es
-  | Union (Bottom, es) -> es
-  | Union (es, es') when es = es' -> es
-  | Sequence (Empty, es) -> es
-  | Sequence (es, Empty) -> es
-  | Sequence (Bottom, _) -> Bottom
-  | Sequence (_, Bottom) -> Bottom
-  | Parallel (es, Empty) -> es
-  | Parallel (Empty, es) -> es
-  | Parallel (_, Bottom) -> Bottom
-  | Parallel (Bottom, _) -> Bottom
-  | Parallel (es, es') when es = es' -> es
-  | Union (Union (es1, es2), es3) -> Union (es1, Union (es2, es3))
-  | Kleene Bottom -> Empty
-  | Kleene Empty -> Empty
-  | Kleene (Union (Empty, es)) -> Kleene es
-  | Sequence (Sequence (es1, es2), es3) -> Sequence (es1, Sequence (es2, es3))
-  | Sequence (es, Union (es1, es2)) -> Union (Sequence (es, es1), Sequence (es, es2))
-  | Sequence (Union (es1, es2), es) -> Union (Sequence (es1, es), Sequence (es2, es))
-  | Parallel (es, Union (es1, es2)) -> Union (Parallel (es, es1), Parallel (es, es2))
-  | Parallel (Union (es1, es2), es) -> Union (Parallel (es1, es), Parallel (es2, es))
-  (* normalize recursively *)
-  | Sequence (es1, es2) ->
-      let es1' = normalize_es es1 in
-      if es1' <> es1 then
-        Sequence (es1', es2)
-      else
-        Sequence (es1, normalize_es es2)
-  | Union (es1, es2) ->
-      let es1' = normalize_es es1 in
-      if es1' <> es1 then
-        Union (es1', es2)
-      else
-        Union (es1, normalize_es es2)
-  | Parallel (es1, es2) ->
-      let es1' = normalize_es es1 in
-      if es1' <> es1 then
-        Parallel (es1', es2)
-      else
-        Parallel (es1, normalize_es es2)
-  | Kleene es -> Kleene (normalize_es es)
-  | es -> es
-;;
 
-let normalize : Ast.effects -> Ast.effects = function
-  | False, _       -> (False, Bottom)
-  | pure, instants -> (pure, normalize_es instants)
-;;
+let fixpoint ~f ?(fn_iter = fun _ -> ()) ?(fn_stop = fun _ -> ()) init =
+  let rec iter cur =
+    let next = f cur in
+    if cur = next then (
+      fn_stop cur;
+      cur)
+    else (
+      fn_iter cur;
+      iter next)
+  in
+  iter init
+
 
 let verify_entailment (Ast.Entail { lhs; rhs }) =
-  let rec aux ctx first lhs rhs =
-    let hist = { first; iterations = []; unfoldings = [] } in
+  let rec aux ctx (first_i, first_pi, first_t) (lhs : Ast.effects) rhs =
+    let hist =
+      {
+        first_i;
+        first_pi = fixpoint ~f:Inference.normalize_pi first_pi;
+        first_t;
+        iterations = [];
+        unfoldings = [];
+      }
+    in
     let bot_lhs (_, es1) = es1 = Ast.Bottom
     and bot_rhs (_, es2) = es2 = Ast.Bottom
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
@@ -124,35 +99,27 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
         true
       else
         ctx |> Proofctx.exists (Entail { lhs; rhs })
-    and unfold ctx ((lpure, es1) as lhs) rhs =
-      let firsts = Inference.first es1 in
+    and unfold ctx ((pi1, es1) as lhs) rhs =
+      let firsts = Inference.first ctx pi1 es1 in
       let ctx = ctx |> Proofctx.add (Entail { lhs; rhs }) in
       firsts
-      |> Signals.forall (fun x ->
-             let lhs' = Inference.partial_deriv (x, lpure) lhs in
-             let rhs' = Inference.partial_deriv (x, lpure) rhs in
+      |> Inference.Set.for_all (fun x ->
+             let lhs' = Inference.partial_deriv ctx x lhs in
+             let rhs' = Inference.partial_deriv ctx x rhs in
              let verdict, sub_hist = aux ctx x lhs' rhs' in
              hist |> add_unfolding sub_hist;
              verdict)
     and normal lhs rhs =
-      let rec iter es =
-        let es' = normalize es in
-        if es = es' then
-          es
-        else (
-          hist |> add_iteration ("NORM-LHS", Entail { lhs = es; rhs });
-          iter es')
+      let lhs =
+        fixpoint ~f:Inference.normalize
+          ~fn_iter:(fun es -> hist |> add_iteration ("NORM-LHS", Entail { lhs = es; rhs }))
+          lhs
       in
-      let lhs = iter lhs in
-      let rec iter es =
-        let es' = normalize es in
-        if es = es' then
-          es
-        else (
-          hist |> add_iteration ("NORM-RHS", Entail { lhs; rhs = es });
-          iter es')
+      let rhs =
+        fixpoint ~f:Inference.normalize
+          ~fn_iter:(fun es -> hist |> add_iteration ("NORM-RHS", Entail { lhs; rhs = es }))
+          rhs
       in
-      let rhs = iter rhs in
       (lhs, rhs)
     in
     (* Verify *)
@@ -176,16 +143,16 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
     in
     (verdict, hist)
   in
-  aux Proofctx.empty Signals.null lhs rhs
-;;
+  let ctx = Proofctx.make () in
+  aux ctx (Signals.empty, True, Nil) lhs rhs
+
 
 let verify_specification (Ast.Spec (entailment, assertion)) =
   let verdict, history = verify_entailment entailment in
   if verdict == assertion then
     (true, "\027[32mCorrect\027[0m", history)
   else
-    ( false
-    , Printf.sprintf "\027[31mIncorrect\027[0m  got: \027[34m%b\027[0m  expect: \027[34m%b\027[0m"
-        verdict assertion
-    , history )
-;;
+    ( false,
+      Printf.sprintf "\027[31mIncorrect\027[0m  got: \027[34m%b\027[0m  expect: \027[34m%b\027[0m"
+        verdict assertion,
+      history )

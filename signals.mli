@@ -12,23 +12,14 @@ type t
 
 val show : t -> string
 
-val null : t
+val empty : t
 
-val is_null : t -> bool
+val is_empty : t -> bool
+
+val from : string -> t
 
 val make : event list -> t
 
+val merge : t -> t -> t
+
 val ( |- ) : t -> t -> bool
-
-(* Type of the set of signals *)
-type set = t list
-
-val empty : set
-
-val from : t -> set
-
-val union : set -> set -> set
-
-val forall : (t -> bool) -> set -> bool
-
-val zip : set -> set -> set

@@ -7,7 +7,17 @@
 
 (executable
  (name main)
- (modules main lexer parser syntax ast signals inference proofctx verifier))
+ (modules
+  main
+  lexer
+  parser
+  syntax
+  ast
+  signals
+  inference
+  proofctx
+  solver
+  verifier))
 
 (env
  (dev

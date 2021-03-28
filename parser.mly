@@ -2,20 +2,30 @@
 %token EOF "eof"
 %token TRUE "True" FALSE "False"
 %token TRUTH "true" FALSENESS "false"
-%token AND "&&" OR "||" PAR "//" DOT "." COMMA ","
-%token KLEENE "^*" ENTAIL "|-" COLON ":"
+%token AND "&&" OR "||" PAR "//" NOT "!"
+%token KLEENE "^*" ENTAIL "|-" IMPLY "=>"
+%token DOT "." COMMA "," COLON ":"
+%token PLUS "+" MINUS "-"
+%token EQ "=" LT "<" LTE "<=" GT ">" GTE ">="
 %token LPAREN "(" RPAREN ")"
 %token LBRACE "{" RBRACE "}"
 %token BOTTOM "_|_" EMPTY "empty"
-%token QUESTION "?"
+%token QUESTION "?" SHARP "#"
+%token <string> VAR "var"
 %token <string> EVENT "event"
+%token <int> INT "int"
 
 %start specification only_entailment
 %type <Ast.specification> specification
 %type <Ast.entailment> only_entailment
 
+%right "=>"
 %right "//"
 %right "||"
+%right "&&"
+%left "+" "-"
+// %nonassoc "!"
+%nonassoc "#"
 %right "."
 %nonassoc "^*"
 
@@ -35,11 +45,33 @@ entailment:
     lhs=effects "|-" rhs=effects { Ast.Entail {lhs; rhs} }
 
 effects:
-    p=pure "&&" es=instants { (p, es) }
+    p=pi "&&" es=instants { (p, es) }
 
-pure:
-    "True"  { Ast.True }
-  | "False" { Ast.False }
+pi:
+    "True"                    { Ast.True }
+  | "False"                   { Ast.False }
+  | pi=atomic                 { pi }
+  | "!" "(" pi=paren_pi ")"   { Ast.Not pi }
+  | "(" pi=paren_pi ")"       { pi }
+
+paren_pi:
+  | pi=pi                           { pi }
+  | pi1=paren_pi "&&" pi2=paren_pi  { Ast.(pi1 &&* pi2) }
+  | pi1=paren_pi "||" pi2=paren_pi  { Ast.(pi1 ||* pi2) }
+  | pi1=paren_pi "=>" pi2=paren_pi  { Ast.(pi1 =>* pi2) }
+
+atomic:
+    t1=term "=" t2=term   { Ast.(t1 =* t2) }
+  | t1=term "<" t2=term   { Ast.(t1 <* t2) }
+  | t1=term "<=" t2=term  { Ast.(t1 <=* t2) }
+  | t1=term ">" t2=term   { Ast.(t1 >* t2) }
+  | t1=term ">=" t2=term  { Ast.(t1 >=* t2) }
+
+term:
+    i="int"               { Ast.Const i }
+  | v="var"               { Ast.Var v }
+  | t1=term "+" t2=term   { Ast.(t1 +* t2) }
+  | t1=term "-" t2=term   { Ast.(t1 -* t2) }
 
 instants:
     "_|_"                           { Ast.Bottom }
@@ -50,10 +82,11 @@ instants:
   | es1=instants "."  es2=instants  { Ast.Sequence (es1, es2) }
   | es1=instants "//" es2=instants  { Ast.Parallel (es1, es2) }
   | es=instants "^*"                { Ast.Kleene (es) }
+  | es=instants "#" t=term          { Ast.Timed (es, t) }
   | "(" es=instants ")"             { es }
 
 instant:
-    "{" "}"              { Signals.null }
+    "{" "}"              { Signals.empty }
   | "{" l=event_list "}" { Signals.make l  }
 
 event_list:

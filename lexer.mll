@@ -4,11 +4,11 @@
 
 let eol = '\n'
 let space = [' ' '\t' '\r']
-(* let digit = ['0'-'9'] *)
-let alpha = ['a'-'z' 'A'-'Z' '_']
+let digit = ['0'-'9']
 let lower = ['a'-'z']
 let upper = ['A'-'Z']
-(* let alnum = digit | alpha | '_' *)
+let alpha = lower | upper
+let alnum = digit | alpha | '_'
 
 rule lex = parse
   | eol                     { Lexing.new_line lexbuf; lex lexbuf }
@@ -16,6 +16,13 @@ rule lex = parse
   | eof                     { EOF }
   | "True"                  { TRUE }
   | "False"                 { FALSE }
+  | "+"                     { PLUS }
+  | "-"                     { MINUS }
+  | "="                     { EQ }
+  | "<"                     { LT }
+  | "<="                    { LTE }
+  | ">"                     { GT }
+  | ">="                    { GTE }
   | "true"                  { TRUTH }
   | "false"                 { FALSENESS }
   | "/\\"                   { AND }
@@ -23,6 +30,7 @@ rule lex = parse
   | "\\/"                   { OR }
   | "||"                    { OR }
   | "//"                    { PAR }
+  | "#"                     { SHARP }
   | "."                     { DOT }
   | ","                     { COMMA }
   | "^*"                    { KLEENE }
@@ -36,5 +44,7 @@ rule lex = parse
   | "bot"                   { BOTTOM }
   | "emp"                   { EMPTY }
   | "?"                     { QUESTION }
-  | upper alpha* as e       { EVENT e }
+  | digit+ as n             { INT (int_of_string n) }
+  | lower alnum* as v       { VAR v }
+  | upper alnum* as e       { EVENT e }
   | _                       { UNKNOWN }
