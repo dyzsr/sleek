@@ -1,7 +1,7 @@
 type term =
-  | Nil
   | Const of int
   | Var   of string
+  | Bar   of string
   | Gen   of int
   | Plus  of term * term
   | Minus of term * term
@@ -15,9 +15,9 @@ val show_term : term -> string
 type atomic_op =
   | Eq
   | Lt
-  | Lte
+  | Le
   | Gt
-  | Gte
+  | Ge
 
 type pi =
   | True
@@ -74,3 +74,11 @@ val show_entailment : entailment -> string
 type specification = Spec of entailment * bool
 
 val show_specification : specification -> string
+
+val disambiguate_effects : effects -> effects
+
+val normalize_pi : pi -> pi
+
+val normalize_es : instants -> instants
+
+val normalize : effects -> effects

@@ -1,7 +1,7 @@
 type history = {
   first_i : Signals.t;
   first_pi : Ast.pi;
-  first_t : Ast.term;
+  first_t : Ast.term option;
   mutable iterations : (string * Ast.entailment) list;
   mutable unfoldings : history list;
 }
@@ -13,7 +13,7 @@ let add_iteration (label, es) hist =
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
 
-let show_history ~verbose hist =
+let show_history hist ~verbose =
   let rec aux spaces prefix hist =
     let first = ref true in
     let get_prefix () =
@@ -35,7 +35,9 @@ let show_history ~verbose hist =
           (Printf.sprintf
              "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s,\027[33m %s,\027[35m %s\027[0m" "∖"
              (get_prefix ()) (Signals.show hist.first_i) (Ast.show_pi hist.first_pi)
-             (Ast.show_term hist.first_t))
+             (match hist.first_t with
+             | None   -> "_"
+             | Some t -> Ast.show_term t))
     in
     let show_iterations =
       if verbose then
@@ -63,21 +65,8 @@ let show_history ~verbose hist =
 
 let show_verification ~case ~no ~verdict ~verbose ~history =
   Printf.sprintf "\027[1mCase %-5d :\027[0m  %s\n" no (Ast.show_specification case)
-  ^ Printf.sprintf "\027[1mVerify     :\027[0m\n%s\n" (show_history ~verbose history)
+  ^ Printf.sprintf "\027[1mVerify     :\027[0m\n%s\n" (show_history history ~verbose)
   ^ Printf.sprintf "\027[1mVerdict    :\027[0m  %s\n" verdict
-
-
-let fixpoint ~f ?(fn_iter = fun _ -> ()) ?(fn_stop = fun _ -> ()) init =
-  let rec iter cur =
-    let next = f cur in
-    if cur = next then (
-      fn_stop cur;
-      cur)
-    else (
-      fn_iter cur;
-      iter next)
-  in
-  iter init
 
 
 let verify_entailment (Ast.Entail { lhs; rhs }) =
@@ -85,7 +74,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
     let hist =
       {
         first_i;
-        first_pi = fixpoint ~f:Inference.normalize_pi first_pi;
+        first_pi = Utils.fixpoint ~f:Ast.normalize_pi first_pi;
         first_t;
         iterations = [];
         unfoldings = [];
@@ -95,28 +84,33 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
     and bot_rhs (_, es2) = es2 = Ast.Bottom
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
     and reoccur ctx lhs rhs =
-      if lhs = rhs then
-        true
+      if lhs = rhs || Proofctx.exists_entail (Entail { lhs; rhs }) ctx then
+        ctx |> Proofctx.check_implies
       else
-        ctx |> Proofctx.exists (Entail { lhs; rhs })
-    and unfold ctx ((pi1, es1) as lhs) rhs =
+        false
+    and unfold ctx ((pi1, es1) as lhs) ((pi2, _) as rhs) =
       let firsts = Inference.first ctx pi1 es1 in
-      let ctx = ctx |> Proofctx.add (Entail { lhs; rhs }) in
-      firsts
-      |> Inference.Set.for_all (fun x ->
-             let lhs' = Inference.partial_deriv ctx x lhs in
-             let rhs' = Inference.partial_deriv ctx x rhs in
-             let verdict, sub_hist = aux ctx x lhs' rhs' in
-             hist |> add_unfolding sub_hist;
-             verdict)
+      if Inference.Set.is_empty firsts then (
+        ctx |> Proofctx.add_l_imply ~pre:pi1;
+        ctx |> Proofctx.add_r_imply ~pre:pi2;
+        ctx |> Proofctx.check_implies)
+      else
+        let ctx = ctx |> Proofctx.add_entail (Entail { lhs; rhs }) in
+        firsts
+        |> Inference.Set.for_all (fun x ->
+               let lhs' = Inference.partial_deriv ctx Proofctx.add_l_imply x lhs in
+               let rhs' = Inference.partial_deriv ctx Proofctx.add_r_imply x rhs in
+               let verdict, sub_hist = aux ctx x lhs' rhs' in
+               hist |> add_unfolding sub_hist;
+               verdict)
     and normal lhs rhs =
       let lhs =
-        fixpoint ~f:Inference.normalize
+        Utils.fixpoint ~f:Ast.normalize
           ~fn_iter:(fun es -> hist |> add_iteration ("NORM-LHS", Entail { lhs = es; rhs }))
           lhs
       in
       let rhs =
-        fixpoint ~f:Inference.normalize
+        Utils.fixpoint ~f:Ast.normalize
           ~fn_iter:(fun es -> hist |> add_iteration ("NORM-RHS", Entail { lhs; rhs = es }))
           rhs
       in
@@ -144,7 +138,8 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
     (verdict, hist)
   in
   let ctx = Proofctx.make () in
-  aux ctx (Signals.empty, True, Nil) lhs rhs
+  let rhs = Ast.disambiguate_effects rhs in
+  aux ctx (Signals.empty, True, None) lhs rhs
 
 
 let verify_specification (Ast.Spec (entailment, assertion)) =

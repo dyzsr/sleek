@@ -6,7 +6,7 @@
 %token KLEENE "^*" ENTAIL "|-" IMPLY "=>"
 %token DOT "." COMMA "," COLON ":"
 %token PLUS "+" MINUS "-"
-%token EQ "=" LT "<" LTE "<=" GT ">" GTE ">="
+%token EQ "=" LT "<" LE "<=" GT ">" GE ">="
 %token LPAREN "(" RPAREN ")"
 %token LBRACE "{" RBRACE "}"
 %token BOTTOM "_|_" EMPTY "empty"
@@ -20,12 +20,12 @@
 %type <Ast.entailment> only_entailment
 
 %right "=>"
-%right "//"
-%right "||"
-%right "&&"
-%left "+" "-"
+%left "||"
+%left "&&"
 // %nonassoc "!"
+%right "//"
 %nonassoc "#"
+%left "+" "-"
 %right "."
 %nonassoc "^*"
 
@@ -78,7 +78,7 @@ instants:
   | "empty"                         { Ast.Empty }
   | i=instant                       { Ast.Instant i }
   | e=waiting                       { Ast.Await e }
-  | es1=instants "||" es2=instants  { Ast.Union (es1, es2) }
+  | es1=instants "+" es2=instants   { Ast.Union (es1, es2) }
   | es1=instants "."  es2=instants  { Ast.Sequence (es1, es2) }
   | es1=instants "//" es2=instants  { Ast.Parallel (es1, es2) }
   | es=instants "^*"                { Ast.Kleene (es) }

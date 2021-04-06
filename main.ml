@@ -16,8 +16,8 @@ let tests =
     "True && _|_  |-  False && _|_ : true";
     "False && {}  |-  True && {}   : true";
     "True && {}   |-  False && _|_ : false";
-    "True && {} . _|_   |-  True && _|_ : true";
-    "True && {} || _|_  |-  True && _|_ : false";
+    "True && {} .  _|_  |-  True && _|_ : true";
+    "True && {} +  _|_  |-  True && _|_ : false";
     "True && {} // _|_  |-  True && _|_ : true";
     "True && {} // _|_  |-  True && _|_ : true";
     "True && _|_^*  |-  True && emp : true";
@@ -39,13 +39,13 @@ let tests =
     "True && {A}.{B}.{A}.{C}.{B}  |-  True && {A}.{}.{}.{C}.{A}    : false";
     "True && {A}.{B}.{A}.{C}.{B}  |-  True && {A}.{}.{}.{C}.{A}    : false";
     (* Union *)
-    "True && {A} || {B}  |-  True && {A} : false";
-    "True && {A}  |-  True && {A} || {B} : true";
-    "True && {A} || {B}  |-  True && {B} || {A} : true";
-    "True && ({A} || {C}) || {B}  |-  True && ({C} || {A}) || {B} : true";
-    "True && {A} || ({C} || {B})  |-  True && {B} || ({A} || {C}) : true";
-    "True && {A} || {B} || {C} || {D} || {E}  |-  True && {A, B, C, D, E} : false";
-    "True && {A, B, C, D, E}  |-  True && {A} || {B} || {C} || {D} || {E} : true";
+    "True && {A} + {B}  |-  True && {A} : false";
+    "True && {A}  |-  True && {A} + {B} : true";
+    "True && {A} + {B}  |-  True && {B} + {A} : true";
+    "True && ({A} + {C}) + {B}  |-  True && ({C} + {A}) + {B} : true";
+    "True && {A} + ({C} + {B})  |-  True && {B} + ({A} + {C}) : true";
+    "True && {A} + {B} + {C} + {D} + {E}  |-  True && {A, B, C, D, E} : false";
+    "True && {A, B, C, D, E}  |-  True && {A} + {B} + {C} + {D} + {E} : true";
     (* Parallel *)
     "True && {A} // {B}  |-  True && {A} // {B} : true";
     "True && {A, B}  |-  True && {A} // {B} : true";
@@ -53,14 +53,14 @@ let tests =
     "True && {A} // {B} // {C} // {D} // {E}  |-  True && {A, B, C, D, E} : true";
     "True && {A, B, C, D, E}  |-  True && {A} // {B} // {C} // {D} // {E} : true";
     (* Sequence, Union *)
-    "True && {A}.{B} || {C}.{D}  |-  True && {C}.{D} || {A}.{B} : true";
-    "True && {A}.({B} || {C}).{D}  |-  True && {}.{}.{} : true";
-    "True && {A}.{B}.{C} || {C}.{B}.{A}  |-  True && {A}.{B}.{A} : false";
-    "True && {A}.{B}.{C} || {C}.{B}.{A}  |-  True && {}.{B}.{}   : true";
-    "True && {A, C}.{B}.{C} || {A, C}.{B}.{A}  |-  True && {A}.{B}.{} : true";
-    "True && {A, C}.{B}.{C} || {A, C}.{B}.{A}  |-  True && {C}.{B}.{} : true";
-    "True && {A}.{B}.{A}  |-  True && {A}.{B}.{C} || {C}.{B}.{A}       : false";
-    "True && {A, C}.{B}.{A, C}  |-  True && {A}.{B}.{C} || {C}.{B}.{A} : true";
+    "True && {A}.{B} + {C}.{D}  |-  True && {C}.{D} + {A}.{B} : true";
+    "True && {A}.({B} + {C}).{D}  |-  True && {}.{}.{} : true";
+    "True && {A}.{B}.{C} + {C}.{B}.{A}  |-  True && {A}.{B}.{A} : false";
+    "True && {A}.{B}.{C} + {C}.{B}.{A}  |-  True && {}.{B}.{}   : true";
+    "True && {A, C}.{B}.{C} + {A, C}.{B}.{A}  |-  True && {A}.{B}.{} : true";
+    "True && {A, C}.{B}.{C} + {A, C}.{B}.{A}  |-  True && {C}.{B}.{} : true";
+    "True && {A}.{B}.{A}  |-  True && {A}.{B}.{C} + {C}.{B}.{A}       : false";
+    "True && {A, C}.{B}.{A, C}  |-  True && {A}.{B}.{C} + {C}.{B}.{A} : true";
     (* Sequence, Parallel *)
     "True && {A}.{B} // {C}.{D}  |-  True && {C}.{D} // {A}.{B} : true";
     "True && {A}.({B} // {C}).{D}  |-  True && {}.{}.{} : true";
@@ -80,12 +80,12 @@ let tests =
     "True && {A, B}^*   |-  True && _|_^* : false";
     "False && {A, B}^*  |-  True && _|_^* : true";
     (* Kleene, Union, Parallel *)
-    "True && ({A} || {B})^*  |-  True && {A}^* : false";
-    "True && {A}^*  |-  True && ({A} || {B})^* : true";
-    "True && ({A} || {B})^*  |-  True && ({B} || {A})^* : true";
-    "True && ({A} || ({B} || {C}))^*  |-  True && ({B} || ({A} || {C}))^* : true";
-    "True && ({A} || ({B} // {C}))^*  |-  True && {}^* : true";
-    "True && ({A} || ({A} // {C}))^*  |-  True && {A}^* || ({A} || {C})^* : true";
+    "True && ({A} + {B})^*  |-  True && {A}^* : false";
+    "True && {A}^*  |-  True && ({A} + {B})^* : true";
+    "True && ({A} + {B})^*  |-  True && ({B} + {A})^* : true";
+    "True && ({A} + ({B} + {C}))^*  |-  True && ({B} + ({A} + {C}))^* : true";
+    "True && ({A} + ({B} // {C}))^*  |-  True && {}^* : true";
+    "True && ({A} + ({A} // {C}))^*  |-  True && {A}^* + ({A} + {C})^* : true";
     (* Sequence, Kleene *)
     "True && {A}.{B}^*.{C}.{A, B}  |-  True && {A}.{B}^*.{C}.{A}   : true";
     "True && {A}.{B}^*.{C}.{A, B}  |-  True && {A}.{B}^*.{}.{A}^*  : true";
@@ -93,22 +93,22 @@ let tests =
     "True && {A}.{B}^*.{C}^*  |-  True && {A}^*.{B, C}^*    : false";
     "True && {A}.{B, C}^*  |-  True && {A}^*.{B}^*.{C}^*    : true";
     (* Mixed *)
-    "True && {A}.{B}^*.{C}^*    |-  True && {A}^*.({B} || {C})^*   : true";
-    "True && {A}^*.{B}^*.{C}^*  |-  True && ({A} || {B} || {C})^*  : true";
-    "True && ({A}.{B}.{C})^*    |-  True && ({A} || {B} || {C})^*  : true";
-    "True && {B}.({A} || ({B} || {C}))^*  |-  True && ({B} || ({A} || {C}))^* : true";
-    "True && {A, B}.({A} || ({B} // {C}))^*  |-  True && {}^* : true";
-    "True && {A, C}.({A} || ({A} // {C}))^*  |-  True && {A}^* || ({A} || {C})^* : true";
-    "True && {A, C}^*.({A} || ({A} // {C}))^*  |-  True && {A}^* || ({A} || {C})^* : true";
-    "True && ({A}||{D}).{B, E}.({C}//{F})  |-  True && (({A}||{D}).{B, E}.({C}//{F}))^* : true";
-    "True && (({A}||{D}).{B, E}.({C}//{F}))^*  |-  True && (({A}||{D}).{B, E}.({C}//{F}))^* : true";
-    "True && (({A}||{D}).{B, E}.({C}//{F}))^*  |-  True && ({A}||{B}||{C}||{D}||{E})^* : true";
+    "True && {A}.{B}^*.{C}^*    |-  True && {A}^*.({B} + {C})^*   : true";
+    "True && {A}^*.{B}^*.{C}^*  |-  True && ({A} + {B} + {C})^*  : true";
+    "True && ({A}.{B}.{C})^*    |-  True && ({A} + {B} + {C})^*  : true";
+    "True && {B}.({A} + ({B} + {C}))^*  |-  True && ({B} + ({A} + {C}))^* : true";
+    "True && {A, B}.({A} + ({B} // {C}))^*  |-  True && {}^* : true";
+    "True && {A, C}.({A} + ({A} // {C}))^*  |-  True && {A}^* + ({A} + {C})^* : true";
+    "True && {A, C}^*.({A} + ({A} // {C}))^*  |-  True && {A}^* + ({A} + {C})^* : true";
+    "True && ({A}+{D}).{B, E}.({C}//{F})  |-  True && (({A}+{D}).{B, E}.({C}//{F}))^* : true";
+    "True && (({A}+{D}).{B, E}.({C}//{F}))^*  |-  True && (({A}+{D}).{B, E}.({C}//{F}))^* : true";
+    "True && (({A}+{D}).{B, E}.({C}//{F}))^*  |-  True && ({A}+{B}+{C}+{D}+{E})^* : true";
     (* Alternative Syntax *)
     {| True /\ {A, B}.{A, B}^*  |-  True /\ {A, B}^* : true |};
     {| True /\ ({A}.{B})^*      |-  True /\ {A, B}^* : false |};
-    {| True /\ ({A}.{B})^*      |-  True /\ ({A} || {B})^* : true |};
-    {| True /\ ({A}.{B})^*      |-  True /\ emp || {A}.{B}.({A} || {B})^* : true |};
-    {| True /\ ({A}.{B})^*      |-  True /\ bot || {A}.{B}.({A} || {B})^* : false |};
+    {| True /\ ({A}.{B})^*      |-  True /\ ({A} + {B})^* : true |};
+    {| True /\ ({A}.{B})^*      |-  True /\ emp + {A}.{B}.({A} + {B})^* : true |};
+    {| True /\ ({A}.{B})^*      |-  True /\ bot + {A}.{B}.({A} + {B})^* : false |};
     {| True /\ ({A}.{B})^* // {C}    |-  True /\ {A, C}.{B}.({A}.{B})^* : true   |};
     {| True /\ ({A}.{B})^* // {C}^*  |-  True /\ ({A, C}.{B, C})^* : true   |};
     {| True /\ ({A}.{B})^* // ({C} // {D})^*  |-  True /\ ({A, C}.{B, C})^* : true   |};
@@ -124,7 +124,7 @@ let tests =
     "True && {}^*.{A}  |-  True && A?        : false";
     "True && A?        |-  True && {}^*.{A}  : true";
     "True && A?        |-  True && {A}^*.{A} : false";
-    "True && {A} || {}.{A}  |-  True && A?   : false";
+    "True && {A} + {}.{A}  |-  True && A?   : false";
     "True && {B} // {A}  |-  True && A? // {B} : true";
     "True && {B} // {}.{A}  |-  True && A? // {B} : true";
     "True && {B} // {}.{}.{A}  |-  True && A? // {B} : true";
@@ -152,15 +152,44 @@ let tests =
     "True && A?.B?.C? // {A}.{B}.{C}      |-  True && {A}.{B}.{C} : true";
     "True && A?.B?.C? // {D}.{A}.{B}.{C}  |-  True && {D}.{A}.{B}.{C} : true";
     "True && A?.B?.C? // {D}.{A}.{B}.{C}  |-  True && {A}.{A}.{B}.{C} : false";
-    "True && A?.B?.C? // {D}.{A}.{B}.{C}  |-  True && {A}.{B}.{C}.{} || {A}.{B}.{}.{C} || \
-     {A}.{}.{B}.{C} || {}.{A}.{B}.{C} : true";
-    "True && A?.B?.C? // {D}.{A}.{B}.{C}  |-  True && {A}.{B}.{C}.{C} || {D}.{A}.{B}.{C} : true";
+    "True && A?.B?.C? // {D}.{A}.{B}.{C}  |-  True && {A}.{B}.{C}.{} + {A}.{B}.{}.{C} + {A}.{}.{B}.{C} + {}.{A}.{B}.{C} : true";
+    "True && A?.B?.C? // {D}.{A}.{B}.{C}  |-  True && {A}.{B}.{C}.{C} + {D}.{A}.{B}.{C} : true";
     "True && {A}.{C}.B?.{D}  |-  True && {A}.B?.{D}     : true";
     "True && A?.B?.{D} // {A}.{B}.{C}   |-  True && {A}.{B}.{C, D} : true";
     "True && {A}.{B}.{C}.B?.{D}  |-  True && {A}.{B}.(B? // {C}).{D} : true";
+    "True && ({A} + {B}) // {C}  |-  True && ({A} // {C}) + ({B} // {C}) : true";
     (* Timed effects *)
-    "t > 1 && {A} # t  |-  t > 3 && {A} # t : true";
+    "t > 1 && {A} # t  |-  t > 3 && {A} # t : false";
     "t > 1 && {A} # t  |-  True && {A} : true";
+    "t < 1 && {A} # t  |-  t < 2 && {A} # t : true";
+    "t < 2 && {A} # t  |-  t < 2 && {A} # t : true";
+    "t < 2 && {A} # t  |-  t < 1 && {A} # t : false";
+    "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
+    "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : true";
+    "(t1 < 2 && t2 < 3) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
+    "(t1 < 3 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
+    "(t1 < 3 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
+    "t > 3 && {A} # t  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
+    "t > 3 && {A} # t  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+    "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
+    "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+    "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
+    "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+    "t > 1 && {A}.{B} # t  |-  t > 3 && {A}.{B} # t: false";
+    "t < 1 && {A}.{B} # t  |-  t < 3 && {A}.{B} # t: true";
+    "t < 1 && emp.{B} # t  |-  t < 3 && emp.{B} # t: true";
+    "(t1 < 1 && t2 < 1) && ({A} # t1).({B} # t2)  |-  t < 3 && {A}.{B} # t: true";
+    "(t1 > 1 && t2 > 1) && ({A} # t1).({B} # t2)  |-  t > 3 && {A}.{B} # t: false";
+    "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t: true";
+    "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t: false";
+    "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
+    "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
+    "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
+    "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
+    "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
+    "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
+    "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
+    "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
   ]
 
 

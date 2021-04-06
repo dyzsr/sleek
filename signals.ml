@@ -2,13 +2,13 @@ type event = Present of string
 
 let show_event = function
   | Present name -> name
-;;
+
 
 let present name = Present name
 
 let is_present = function
   | Present _ -> true
-;;
+
 
 (* Type of signals *)
 type t = event list
@@ -16,7 +16,7 @@ type t = event list
 let show = function
   | [] -> "{}"
   | l  -> "{" ^ String.concat ", " (List.map show_event l) ^ "}"
-;;
+
 
 (* Empty signal *)
 let empty = []
@@ -24,7 +24,7 @@ let empty = []
 let is_empty = function
   | [] -> true
   | _  -> false
-;;
+
 
 let from name = [ present name ]
 
@@ -42,5 +42,4 @@ let () =
   assert ([] |- []);
   assert ([ present "A" ] |- []);
   assert ([ present "A" ] |- [ present "A" ]);
-  assert ([ present "A"; present "B" ] |- [ present "A" ]);
-;;
+  assert ([ present "A"; present "B" ] |- [ present "A" ])

@@ -2,8 +2,16 @@ type t
 
 val make : unit -> t
 
-val add : Ast.entailment -> t -> t
+val add_entail : Ast.entailment -> t -> t
 
-val exists : Ast.entailment -> t -> bool
+val exists_entail : Ast.entailment -> t -> bool
 
 val new_term : t -> Ast.term
+
+type fn_add_imply = pre:Ast.pi -> ?post:Ast.pi -> t -> unit
+
+val add_l_imply : fn_add_imply
+
+val add_r_imply : fn_add_imply
+
+val check_implies : t -> bool

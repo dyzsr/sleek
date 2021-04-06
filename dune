@@ -16,8 +16,10 @@
   signals
   inference
   proofctx
-  solver
-  verifier))
+  checker
+  verifier
+  utils)
+ (libraries z3))
 
 (env
  (dev

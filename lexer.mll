@@ -20,9 +20,9 @@ rule lex = parse
   | "-"                     { MINUS }
   | "="                     { EQ }
   | "<"                     { LT }
-  | "<="                    { LTE }
+  | "<="                    { LE }
   | ">"                     { GT }
-  | ">="                    { GTE }
+  | ">="                    { GE }
   | "true"                  { TRUTH }
   | "false"                 { FALSENESS }
   | "/\\"                   { AND }
