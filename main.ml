@@ -196,8 +196,8 @@ let tests =
 let () =
   tests
   |> List.iteri (fun no str ->
-         let case = Syntax.parse_specification str in
-         let correct, verdict, history = Verifier.verify_specification case in
-         Verifier.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history
+         let case = Sleek.parse_specification str in
+         let correct, verdict, history = Sleek.verify_specification case in
+         Sleek.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history
          |> print_endline;
          assert correct)

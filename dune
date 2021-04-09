@@ -5,10 +5,10 @@
  (modules parser)
  (flags --explain --dump))
 
-(executable
- (name main)
+(library
+ (public_name sleek)
+ (name sleek)
  (modules
-  main
   lexer
   parser
   syntax
@@ -18,8 +18,14 @@
   proofctx
   checker
   verifier
-  utils)
+  utils
+  sleek)
  (libraries z3))
+
+(executable
+ (name main)
+ (modules main)
+ (libraries sleek))
 
 (env
  (dev
