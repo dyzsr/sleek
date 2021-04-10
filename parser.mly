@@ -15,9 +15,10 @@
 %token <string> EVENT "event"
 %token <int> INT "int"
 
-%start specification only_entailment
+%start specification only_entailment only_effects
 %type <Ast.specification> specification
 %type <Ast.entailment> only_entailment
+%type <Ast.effects> only_effects
 
 %right "=>"
 %left "||"
@@ -43,6 +44,9 @@ only_entailment:
 
 entailment:
     lhs=effects "|-" rhs=effects { Ast.Entail {lhs; rhs} }
+
+only_effects:
+    eff=effects "eof"   { eff }
 
 effects:
     p=pi "&&" es=instants { (p, es) }
