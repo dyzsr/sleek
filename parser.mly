@@ -18,7 +18,7 @@
 %start specification only_entailment only_effects
 %type <Ast.specification> specification
 %type <Ast.entailment> only_entailment
-%type <Ast.effects> only_effects
+%type <Ast.effects list> only_effects
 
 %right "=>"
 %left "||"
@@ -46,7 +46,22 @@ entailment:
     lhs=effects "|-" rhs=effects { Ast.Entail {lhs; rhs} }
 
 only_effects:
+    e = effect_list "eof"  { e }
+
+effect_list:
+| e = effects obj = maybeMore {
+  match obj with 
+  | None -> [e]
+  | Some tl -> e:: tl
+}
+
+maybeMore:
+| {None}
+| OR tl = effect_list {Some tl}
+
+(*only_effects:
     eff=effects "eof"   { eff }
+    *)
 
 effects:
     p=pi "&&" es=instants { (p, es) }
