@@ -256,6 +256,7 @@ let rec normalize_es : instants -> instants = function
       else
         Parallel (es1, normalize_es es2)
   | Kleene es -> Kleene (normalize_es es)
+  | Timed (Empty, _) -> Empty
   | Timed (es, t) -> Timed (normalize_es es, t)
   | es -> es
 
