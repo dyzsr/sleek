@@ -27,7 +27,7 @@ let rec show_term_with_prec lprec rprec = function
       |> if lprec >= 50 || rprec > 50 then enclose else nothing
 
 
-let show_term p = "\027[3m" ^ show_term_with_prec 0 0 p ^ "\027[23m"
+let show_term p = "\027[4m" ^ show_term_with_prec 0 0 p ^ "\027[24m"
 
 type atomic_op =
   | Eq
@@ -126,10 +126,27 @@ let rec show_instants_with_prec lprec rprec = function
 
 let show_instants es = "\027[36m" ^ show_instants_with_prec 0 0 es ^ "\027[0m"
 
-type effects = pi * instants
+type simple_effects = pi * instants
 
-let show_effects (pi, instants) =
+let show_simple_effects (pi, instants) =
   Printf.sprintf "%s ⋀ %s" (show_pi_with_prec 0 99 pi) (show_instants instants)
+
+
+type effects = simple_effects list
+
+let show_effects l =
+  let strs = List.map show_simple_effects l in
+  String.concat "\027[2m ⋁ \027[22m" strs
+
+
+type simple_entailment =
+  | SimpleEntail of {
+      lhs : simple_effects;
+      rhs : simple_effects;
+    }
+
+let show_simple_entailment (SimpleEntail { lhs; rhs }) =
+  Printf.sprintf "%s  ├─  %s" (show_simple_effects lhs) (show_simple_effects rhs)
 
 
 type entailment =
@@ -148,7 +165,7 @@ let show_specification (Spec (entailment, assertion)) =
   Printf.sprintf "%s \027[35m: %b\027[0m" (show_entailment entailment) assertion
 
 
-let disambiguate_effects (pi, es) =
+let disambiguate_simple_effects (pi, es) =
   let disambiguate_term = function
     | Var v -> Bar (String.capitalize_ascii v)
     | t     -> t

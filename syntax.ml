@@ -25,4 +25,6 @@ let parse_specification text = parse Parser.specification text
 
 let parse_entailment text = parse Parser.only_entailment text
 
+let parse_simple_entailment text = parse Parser.simple_entailment text
+
 let parse_effects text = parse Parser.only_effects text

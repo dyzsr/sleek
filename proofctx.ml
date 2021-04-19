@@ -1,29 +1,29 @@
 open Ast
 
-let entail_lhs (Entail { lhs; _ }) = lhs
+let entail_lhs (SimpleEntail { lhs; _ }) = lhs
 
-let entail_rhs (Entail { rhs; _ }) = rhs
+let entail_rhs (SimpleEntail { rhs; _ }) = rhs
 
 type t = {
   mutable fresh_cnt : int;
   mutable l_imply : pi;
   mutable r_imply : pi;
-  entailments : entailment list;
+  entailments : simple_entailment list;
 }
 
 let make () = { fresh_cnt = 0; l_imply = True; r_imply = True; entailments = [] }
 
-let add_entail (Entail { lhs; rhs } as v) ctx =
+let add_entail (SimpleEntail { lhs; rhs } as v) ctx =
   let entailments =
     v
     :: (ctx.entailments
        |> List.filter (fun x -> rhs = entail_lhs x)
        |> List.map entail_rhs
-       |> List.map (fun rhs -> Entail { lhs; rhs }))
+       |> List.map (fun rhs -> SimpleEntail { lhs; rhs }))
     @ (ctx.entailments
       |> List.filter (fun x -> lhs = entail_rhs x)
       |> List.map entail_lhs
-      |> List.map (fun lhs -> Entail { lhs; rhs }))
+      |> List.map (fun lhs -> SimpleEntail { lhs; rhs }))
     @ ctx.entailments
   in
   { ctx with entailments }
@@ -56,22 +56,24 @@ let check_implies ctx =
   let r_imply = Utils.(fixpoint ~f:normalize_pi) ctx.r_imply in
   let l = not (Checker.check (Not l_imply)) in
   let r = not (Checker.check (Not r_imply)) in
-  Printf.printf "%s : %b\n" (show_pi l_imply) l;
-  Printf.printf "%s : %b\n" (show_pi r_imply) r;
+  if l_imply <> True && l_imply <> False then
+    Printf.printf "\027[2m<lhs> %s : %b\n" (show_pi l_imply) l;
+  if r_imply <> True && r_imply <> False then
+    Printf.printf "\027[2m<rhs> %s : %b\n" (show_pi r_imply) r;
   (not l) || r
 
 
 (* tests *)
 let () =
   let ctx = make () in
-  let ctx = ctx |> add_entail (Syntax.parse_entailment "True && {A} |- True && {}") in
-  assert (ctx |> exists_entail (Syntax.parse_entailment "True && {A} |- True && {}"));
+  let ctx = ctx |> add_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}") in
+  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}"));
   let ctx =
     ctx
-    |> add_entail (Syntax.parse_entailment "True && {B} |- True && {A}")
-    |> add_entail (Syntax.parse_entailment "True && {A, B} |- True && {B}")
+    |> add_entail (Syntax.parse_simple_entailment "True && {B} |- True && {A}")
+    |> add_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {B}")
   in
-  assert (ctx |> exists_entail (Syntax.parse_entailment "True && {B} |- True && {}"));
-  assert (ctx |> exists_entail (Syntax.parse_entailment "True && {A, B} |- True && {}"));
-  assert (ctx |> exists_entail (Syntax.parse_entailment "True && {A, B} |- True && {A}"));
+  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {B} |- True && {}"));
+  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {}"));
+  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {A}"));
   ()

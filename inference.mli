@@ -20,4 +20,5 @@ val nullable : Ast.instants -> bool
 
 val first : Proofctx.t -> Ast.pi -> Ast.instants -> Set.t
 
-val partial_deriv : Proofctx.t -> Proofctx.fn_add_imply -> Set.elem -> Ast.effects -> Ast.effects
+val partial_deriv :
+  Proofctx.t -> Proofctx.fn_add_imply -> Set.elem -> Ast.simple_effects -> Ast.simple_effects

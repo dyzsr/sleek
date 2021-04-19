@@ -2,9 +2,9 @@ type t
 
 val make : unit -> t
 
-val add_entail : Ast.entailment -> t -> t
+val add_entail : Ast.simple_entailment -> t -> t
 
-val exists_entail : Ast.entailment -> t -> bool
+val exists_entail : Ast.simple_entailment -> t -> bool
 
 val new_term : t -> Ast.term
 

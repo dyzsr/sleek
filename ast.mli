@@ -59,9 +59,21 @@ type instants =
 
 val show_instants : instants -> string
 
-type effects = pi * instants
+type simple_effects = pi * instants
+
+val show_simple_effects : simple_effects -> string
+
+type effects = simple_effects list
 
 val show_effects : effects -> string
+
+type simple_entailment =
+  | SimpleEntail of {
+      lhs : simple_effects;
+      rhs : simple_effects;
+    }
+
+val show_simple_entailment : simple_entailment -> string
 
 type entailment =
   | Entail of {
@@ -75,10 +87,10 @@ type specification = Spec of entailment * bool
 
 val show_specification : specification -> string
 
-val disambiguate_effects : effects -> effects
+val disambiguate_simple_effects : simple_effects -> simple_effects
 
 val normalize_pi : pi -> pi
 
 val normalize_es : instants -> instants
 
-val normalize : effects -> effects
+val normalize : simple_effects -> simple_effects

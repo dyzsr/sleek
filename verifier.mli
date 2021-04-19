@@ -1,3 +1,7 @@
+type subhistory
+
+val show_subhistory : subhistory -> verbose:bool -> string
+
 type history
 
 val show_history : history -> verbose:bool -> string

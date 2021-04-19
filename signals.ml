@@ -3,17 +3,18 @@ type event = Present of string
 let show_event = function
   | Present name -> name
 
-let compare_event ev1 ev2 : bool = 
-  match (ev1, ev2) with 
-  | (Present e1, Present e2) -> String.compare e1 e2 == 0
+
+let compare_event ev1 ev2 : bool =
+  match (ev1, ev2) with
+  | Present e1, Present e2 -> String.compare e1 e2 == 0
 
 
 (* To test if the event ev present in instant ins *)
-let rec isSigOne ev ins: bool  =
-  match ins with 
-    [] -> false
-  | x :: xs -> if compare_event x ev then true else isSigOne ev xs 
-  ;;
+let rec isSigOne ev ins : bool =
+  match ins with
+  | []      -> false
+  | x :: xs -> if compare_event x ev then true else isSigOne ev xs
+
 
 let present name = Present name
 

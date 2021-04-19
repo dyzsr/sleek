@@ -158,7 +158,7 @@ let tests =
     "True && A?.B?.{D} // {A}.{B}.{C}   |-  True && {A}.{B}.{C, D} : true";
     "True && {A}.{B}.{C}.B?.{D}  |-  True && {A}.{B}.(B? // {C}).{D} : true";
     "True && ({A} + {B}) // {C}  |-  True && ({A} // {C}) + ({B} // {C}) : true";
-    (* Timed effects *)
+    (* Timed simple_effects *)
     "t > 1 && {A} # t  |-  t > 3 && {A} # t : false";
     "t > 1 && {A} # t  |-  True && {A} : true";
     "t < 1 && {A} # t  |-  t < 2 && {A} # t : true";
@@ -185,11 +185,13 @@ let tests =
     "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
     "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
     "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
-    "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
-    "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
-    "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
-    "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
-    "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
+    (* "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
+       "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
+       "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
+       "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
+       "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true"; *)
+    (* disjunctions *)
+    "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
   ]
 
 
@@ -198,6 +200,5 @@ let () =
   |> List.iteri (fun no str ->
          let case = Sleek.parse_specification str in
          let correct, verdict, history = Sleek.verify_specification case in
-         Sleek.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history
-         |> print_endline;
+         Sleek.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history |> print_endline;
          assert correct)

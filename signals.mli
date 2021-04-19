@@ -3,9 +3,7 @@ type event
 
 val show_event : event -> string
 
-val compare_event: event -> event -> bool
-
-
+val compare_event : event -> event -> bool
 
 val present : string -> event
 
@@ -14,7 +12,7 @@ val is_present : event -> bool
 (* Type of signals *)
 type t
 
-val isSigOne: event -> t -> bool
+val isSigOne : event -> t -> bool
 
 val show : t -> string
 
