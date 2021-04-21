@@ -103,6 +103,24 @@ let rec setAbsent str lst=
     | Some rest -> Some (x :: rest)  (* signal status controdiction *)
    
 
+let rec delete_shown_sig  env _sig=
+  match env with 
+  | [] -> []
+  | x::xs -> if String.compare x _sig == 0 then xs
+            else x:: (delete_shown_sig xs _sig )
+
+let rec add_UndefSigs env ins = 
+  match ins with 
+  | [] -> initUndef env
+  | (Present str)::xs -> 
+    let newEnv = delete_shown_sig env str in 
+    (Present str)::(add_UndefSigs newEnv xs)
+  | (Absent str)::xs ->
+    let newEnv = delete_shown_sig env str in 
+    (Absent str)::(add_UndefSigs newEnv xs)
+  | (Undef str)::xs ->
+    let newEnv = delete_shown_sig env str in 
+    (Undef str)::(add_UndefSigs newEnv xs)
 
     
 

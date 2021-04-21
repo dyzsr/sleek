@@ -28,6 +28,8 @@ val setAbsent: string -> event list -> t option
 
 val setPresent: string -> event list -> t option 
 
+val add_UndefSigs: string list -> t -> t 
+
 val make : event list -> t
 
 val merge : t -> t -> t
