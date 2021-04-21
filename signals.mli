@@ -12,7 +12,7 @@ val is_present : event -> bool
 (* Type of signals *)
 type t
 
-val isSigOne : event -> t -> bool
+val isEventExist : event -> t -> bool
 
 val show : t -> string
 
@@ -21,6 +21,12 @@ val empty : t
 val is_empty : t -> bool
 
 val from : string -> t
+
+val initUndef : string list -> t
+
+val setAbsent: string -> event list -> t option 
+
+val setPresent: string -> event list -> t option 
 
 val make : event list -> t
 
