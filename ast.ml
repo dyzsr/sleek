@@ -27,7 +27,7 @@ let rec show_term_with_prec lprec rprec = function
       |> if lprec >= 50 || rprec > 50 then enclose else nothing
 
 
-let show_term p = "\027[4m" ^ show_term_with_prec 0 0 p ^ "\027[24m"
+let show_term p = Colors.underline ^ show_term_with_prec 0 0 p ^ Colors.no_underline
 
 type atomic_op =
   | Eq
@@ -124,7 +124,7 @@ let rec show_instants_with_prec lprec rprec = function
       |> if lprec >= 25 || rprec >= 25 then enclose else nothing
 
 
-let show_instants es = "\027[36m" ^ show_instants_with_prec 0 0 es ^ "\027[0m"
+let show_instants es = Colors.cyan ^ show_instants_with_prec 0 0 es ^ Colors.reset
 
 type simple_effects = pi * instants
 
@@ -136,7 +136,7 @@ type effects = simple_effects list
 
 let show_effects l =
   let strs = List.map show_simple_effects l in
-  String.concat "\027[2m ⋁ \027[22m" strs
+  String.concat (Colors.bold ^ " ⋁ " ^ Colors.no_bold) strs
 
 
 type simple_entailment =
@@ -162,7 +162,7 @@ let show_entailment (Entail { lhs; rhs }) =
 type specification = Spec of entailment * bool
 
 let show_specification (Spec (entailment, assertion)) =
-  Printf.sprintf "%s \027[35m: %b\027[0m" (show_entailment entailment) assertion
+  Printf.sprintf "%s %s: %B%s" (show_entailment entailment) Colors.magenta assertion Colors.reset
 
 
 let disambiguate_simple_effects (pi, es) =

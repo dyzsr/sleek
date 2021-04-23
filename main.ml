@@ -191,6 +191,8 @@ let tests =
        "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
        "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true"; *)
     (* disjunctions *)
+    "True && {A}  |-  True && {A} || True && {B} : true";
+    "True && {A} || True && {B}  |-  True && {}  : true";
     "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
   ]
 

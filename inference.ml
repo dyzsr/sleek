@@ -127,7 +127,7 @@ let first ctx pi es =
 let _check_imply p1 p2 =
   let imply = p1 =>* p2 in
   let sat = not (Checker.check (Not imply)) in
-  Printf.printf "%s : %b\n" (show_pi imply) sat;
+  Printf.printf "%s : %B\n" (show_pi imply) sat;
   sat
 
 

@@ -56,10 +56,10 @@ let check_implies ctx =
   let r_imply = Utils.(fixpoint ~f:normalize_pi) ctx.r_imply in
   let l = not (Checker.check (Not l_imply)) in
   let r = not (Checker.check (Not r_imply)) in
-  if l_imply <> True && l_imply <> False then
-    Printf.printf "\027[2m<lhs> %s : %b\n" (show_pi l_imply) l;
-  if r_imply <> True && r_imply <> False then
-    Printf.printf "\027[2m<rhs> %s : %b\n" (show_pi r_imply) r;
+  (* if l_imply <> True && l_imply <> False then
+       Printf.printf "\027[2m<lhs> %s : %B\n" (show_pi l_imply) l;
+     if r_imply <> True && r_imply <> False then
+       Printf.printf "\027[2m<rhs> %s : %B\n" (show_pi r_imply) r; *)
   (not l) || r
 
 
