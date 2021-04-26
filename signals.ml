@@ -33,7 +33,7 @@ type t = event list
 
 let show = function
   | [] -> "{}"
-  | l  -> "{" ^ String.concat ", " (List.map show_event l) ^ "}"
+  | l  -> "{" ^ String.concat ", " (List.map show_event(List.filter(fun a -> match a with |Present _ -> true | _ -> false  ) l)) ^ "}"
 
 
 (* Empty signal *)
