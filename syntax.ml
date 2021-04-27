@@ -17,7 +17,7 @@ let parse parser text =
   try parser lexer lexbuf
   with _ ->
     let error = error_message text (Lexing.lexeme_start_p lexbuf) in
-    Printf.eprintf "\027[31m%s\027[0m\n" error;
+    Printf.eprintf "%s%s%s\n" Colors.red error Colors.reset;
     failwith "Syntax error"
 
 

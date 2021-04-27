@@ -22,7 +22,8 @@ let show_subhistory hist ~verbose =
         spaces
     in
     let print name entailment =
-      Printf.sprintf "\027[33m%10s \027[35m│\027[0m  %s%s" name (get_prefix ())
+      Printf.sprintf "%s%10s %s│%s  %s%s" Colors.yellow name Colors.magenta Colors.reset
+        (get_prefix ())
         (Ast.show_simple_entailment entailment)
     in
     let show_first =
@@ -30,12 +31,13 @@ let show_subhistory hist ~verbose =
       | None            -> List.append []
       | Some (i, pi, t) ->
           List.cons
-            (Printf.sprintf
-               "\027[33m%12s \027[35m│\027[0m  %s\027[35m%s,\027[33m %s,\027[35m %s\027[0m" "∖"
-               (get_prefix ()) (Signals.show i) (Ast.show_pi pi)
+            (Printf.sprintf "%s%12s %s│%s  %s%s%s, %s%s, %s%s%s" Colors.yellow "∖"
+               Colors.magenta Colors.reset (get_prefix ()) Colors.magenta (Signals.show i)
+               Colors.yellow (Ast.show_pi pi) Colors.magenta
                (match t with
                | None   -> "_"
-               | Some t -> Ast.show_term t))
+               | Some t -> Ast.show_term t)
+               Colors.reset)
     in
     let show_iterations =
       if verbose then
@@ -73,7 +75,9 @@ let show_history hist ~verbose =
               (fun (j, acc2) sub ->
                 ( j + 1,
                   let sub = show_subhistory sub ~verbose in
-                  let label = Printf.sprintf "\027[36;3mSub-case %d-%d\027[0m" i j in
+                  let label =
+                    Printf.sprintf "%s%sSub-case %d-%d%s" Colors.cyan Colors.italic i j Colors.reset
+                  in
                   sub :: label :: acc2 ))
               (1, []) l
           in
@@ -84,10 +88,10 @@ let show_history hist ~verbose =
 
 
 let show_verification ~case ~no ~verdict ~verbose ~history =
-  "\027[0m"
-  ^ Printf.sprintf "\027[1mCase %-5d :\027[0m  %s\n" no (Ast.show_specification case)
-  ^ Printf.sprintf "\027[1mVerify     :\027[0m\n%s\n" (show_history history ~verbose)
-  ^ Printf.sprintf "\027[1mVerdict    :\027[0m  %s\n" verdict
+  Colors.reset
+  ^ Printf.sprintf "%sCase %-5d :%s  %s\n" Colors.bold no Colors.reset (Ast.show_specification case)
+  ^ Printf.sprintf "%sVerify     :%s\n%s\n" Colors.bold Colors.reset (show_history history ~verbose)
+  ^ Printf.sprintf "%sVerdict    :%s  %s\n" Colors.bold Colors.reset verdict
 
 
 let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
@@ -190,9 +194,9 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
 let verify_specification (Ast.Spec (entailment, assertion)) =
   let verdict, history = verify_entailment entailment in
   if verdict == assertion then
-    (true, "\027[32mCorrect\027[0m", history)
+    (true, Colors.green ^ "Correct" ^ Colors.reset, history)
   else
     ( false,
-      Printf.sprintf "\027[31mIncorrect\027[0m  got: \027[34m%b\027[0m  expect: \027[34m%b\027[0m"
-        verdict assertion,
+      Printf.sprintf "%sIncorrect%s  got: %s%B%s  expect: %s%B%s" Colors.red Colors.reset
+        Colors.blue verdict Colors.reset Colors.blue assertion Colors.reset,
       history )
