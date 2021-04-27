@@ -16,7 +16,7 @@ module Set = struct
 
   let from s pi t = [ (s, pi, t) ]
 
-  let union a b = a @ b |> List.sort_uniq compare
+  let union a b = a @ b |> List.sort_uniq Stdlib.compare
 
   let zip ctx a b =
     a
@@ -40,7 +40,7 @@ module Set = struct
                         in
                         (es', pi', Some t'))))
          empty
-    |> List.sort_uniq compare
+    |> List.sort_uniq Stdlib.compare
 
 
   let () =
