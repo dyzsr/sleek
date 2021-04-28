@@ -14,4 +14,4 @@ val add_l_imply : fn_add_imply
 
 val add_r_imply : fn_add_imply
 
-val check_implies : t -> bool
+val check_implies : t -> bool * Ast.pi * Ast.pi

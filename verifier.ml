@@ -2,6 +2,8 @@ type subhistory = {
   first : (Signals.t * Ast.pi * Ast.term option) option;
   mutable iterations : (string * Ast.simple_entailment) list;
   mutable unfoldings : subhistory list;
+  mutable condition : Ast.pi option;
+  mutable verdict : bool option;
 }
 
 let add_iteration (label, es) hist =
@@ -10,6 +12,10 @@ let add_iteration (label, es) hist =
 
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
+
+let set_condition cond hist = hist.condition <- Some cond
+
+let set_verdict verdict hist = hist.verdict <- Some verdict
 
 let show_subhistory hist ~verbose =
   let rec aux spaces prefix hist =
@@ -21,31 +27,33 @@ let show_subhistory hist ~verbose =
       else
         spaces
     in
-    let print name entailment =
+    let print name message =
       Printf.sprintf "%s%10s %s│%s  %s%s" Colors.yellow name Colors.magenta Colors.reset
-        (get_prefix ())
-        (Ast.show_simple_entailment entailment)
+        (get_prefix ()) message
     in
     let show_first =
       match hist.first with
-      | None            -> List.append []
+      | None            -> fun x -> x
       | Some (i, pi, t) ->
-          List.cons
-            (Printf.sprintf "%s%12s %s│%s  %s%s%s, %s%s, %s%s%s" Colors.yellow "∖"
-               Colors.magenta Colors.reset (get_prefix ()) Colors.magenta (Signals.show i)
-               Colors.yellow (Ast.show_pi pi) Colors.magenta
-               (match t with
-               | None   -> "_"
-               | Some t -> Ast.show_term t)
-               Colors.reset)
+          let first =
+            Printf.sprintf "%s%s%s, %s%s, %s%s" Colors.magenta (Signals.show i) Colors.yellow
+              (Ast.show_pi pi) Colors.magenta
+              (match t with
+              | None   -> "_"
+              | Some t -> Ast.show_term t)
+              Colors.reset
+          in
+          List.cons (print "-" first)
     in
     let show_iterations =
       if verbose then
-        List.fold_right (fun (name, entailment) acc -> print name entailment :: acc) hist.iterations
+        List.fold_right
+          (fun (name, entailment) acc -> print name (Ast.show_simple_entailment entailment) :: acc)
+          hist.iterations
       else
         List.cons
           (let name, entailment = List.hd hist.iterations in
-           print name entailment)
+           print name (Ast.show_simple_entailment entailment))
     in
     let show_unfoldings =
       List.fold_right List.cons
@@ -58,7 +66,23 @@ let show_subhistory hist ~verbose =
                aux (prefix' ^ "│  ") (prefix' ^ "├──") x)
            hist.unfoldings)
     in
-    [] |> show_first |> show_iterations |> show_unfoldings |> List.rev |> String.concat "\n"
+    let show_condition =
+      match hist.condition with
+      | None      -> fun x -> x
+      | Some cond -> List.cons (print "CHECK" (Ast.show_pi cond))
+    in
+    let show_verdict =
+      match hist.verdict with
+      | None         -> fun x -> x
+      | Some verdict ->
+          List.cons
+            (print "VERDICT"
+               (Colors.blue ^ Colors.italic
+               ^ (if verdict then "SUCCESS" else "FAILURE")
+               ^ Colors.reset))
+    in
+    [] |> show_first |> show_iterations |> show_unfoldings |> show_condition |> show_verdict
+    |> List.rev |> String.concat "\n"
   in
   aux "" "" hist
 
@@ -104,6 +128,8 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
           | Some (i, pi, t) -> Some (i, Utils.fixpoint ~f:Ast.normalize_pi pi, t));
         iterations = [];
         unfoldings = [];
+        condition = None;
+        verdict = None;
       }
     in
     let bot_lhs (_, es1) = es1 = Ast.Bottom
@@ -111,7 +137,9 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
     and reoccur ctx lhs rhs =
       if lhs = rhs || Proofctx.exists_entail (SimpleEntail { lhs; rhs }) ctx then
-        ctx |> Proofctx.check_implies
+        let verdict, l_imply, r_imply = ctx |> Proofctx.check_implies in
+        hist |> set_condition Ast.(l_imply =>* r_imply);
+        verdict
       else
         false
     and unfold ctx ((pi1, es1) as lhs) ((pi2, _) as rhs) =
@@ -119,7 +147,10 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
       if Inference.Set.is_empty firsts then (
         ctx |> Proofctx.add_l_imply ~pre:pi1;
         ctx |> Proofctx.add_r_imply ~pre:pi2;
-        ctx |> Proofctx.check_implies)
+        let verdict, l_imply, r_imply = ctx |> Proofctx.check_implies in
+        hist |> set_condition Ast.(l_imply =>* r_imply);
+        hist |> set_verdict verdict;
+        verdict)
       else
         let ctx = ctx |> Proofctx.add_entail (SimpleEntail { lhs; rhs }) in
         firsts
@@ -147,15 +178,19 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     let verdict =
       if bot_lhs lhs then (
         hist |> add_iteration ("Bot-LHS", SimpleEntail { lhs; rhs });
+        hist |> set_verdict true;
         true)
       else if bot_rhs rhs then (
         hist |> add_iteration ("Bot-RHS", SimpleEntail { lhs; rhs });
+        hist |> set_verdict false;
         false)
       else if disprove lhs rhs then (
         hist |> add_iteration ("DISPROVE", SimpleEntail { lhs; rhs });
+        hist |> set_verdict false;
         false)
       else if reoccur ctx lhs rhs then (
         hist |> add_iteration ("REOCCUR", SimpleEntail { lhs; rhs });
+        hist |> set_verdict true;
         true)
       else (
         hist |> add_iteration ("UNFOLD", SimpleEntail { lhs; rhs });

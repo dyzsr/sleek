@@ -60,7 +60,7 @@ let check_implies ctx =
        Printf.printf "\027[2m<lhs> %s : %B\n" (show_pi l_imply) l;
      if r_imply <> True && r_imply <> False then
        Printf.printf "\027[2m<rhs> %s : %B\n" (show_pi r_imply) r; *)
-  (not l) || r
+  ((not l) || r, l_imply, r_imply)
 
 
 (* tests *)
