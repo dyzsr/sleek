@@ -21,6 +21,8 @@ let rec isEventExist ev ins : bool =
 
 let present name = Present name
 
+let absent name = Absent name
+
 let undefine name = Undef name 
 
 let is_present = function
@@ -33,7 +35,7 @@ type t = event list
 
 let show = function
   | [] -> "{}"
-  | l  -> "{" ^ String.concat ", " (List.map show_event(List.filter(fun a -> match a with |Present _ -> true | _ -> false  ) l)) ^ "}"
+  | l  -> "{" ^ String.concat ", " (List.map show_event(List.filter(fun a -> match a with |Present _ -> true | Absent _ -> true | _ -> false  ) l)) ^ "}"
 
 
 (* Empty signal *)

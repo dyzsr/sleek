@@ -7,6 +7,8 @@ val compare_event : event -> event -> bool
 
 val present : string -> event
 
+val absent : string -> event
+
 val is_present : event -> bool
 
 (* Type of signals *)
