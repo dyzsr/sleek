@@ -2,7 +2,7 @@
 %token EOF "eof"
 %token TRUE "True" FALSE "False"
 %token TRUTH "true" FALSENESS "false"
-%token AND "&&" OR "||" PAR "//" NOT "~" EXCLAM 
+%token AND "&&" OR "||" PAR "//" NOT "~" EXCLAM "!"
 %token KLEENE "^*" ENTAIL "|-" IMPLY "=>"
 %token DOT "." COMMA "," COLON ":"
 %token PLUS "+" MINUS "-"
@@ -25,7 +25,6 @@
 %right "=>"
 %left "||"
 %left "&&"
-// %nonassoc "~"
 %right "//"
 %nonassoc "#"
 %left "+" "-"
@@ -64,7 +63,7 @@ pi:
     "True"                            { Ast.True }
   | "False"                           { Ast.False }
   | pi=atomic                         { pi }
-  | EXCLAM "(" pi=paren_pi ")"           { Ast.Not pi }
+  | "~" "(" pi=paren_pi ")"           { Ast.Not pi }
   | "(" pi=paren_pi ")"               { pi }
 
 paren_pi:
@@ -104,9 +103,9 @@ instant:
 
 event_list:
   | e="event"                         { [ Signals.present e ] }
-  | EXCLAM e="event"                     { [ Signals.absent e ] }
+  | "!" e="event"                     { [ Signals.absent e ] }
   | e="event" "," l=event_list        { Signals.present e :: l }
-  | EXCLAM e="event" "," l=event_list    { Signals.absent e :: l }
+  | "!" e="event" "," l=event_list    { Signals.absent e :: l }
 
 
 waiting:

@@ -16,7 +16,8 @@ rule lex = parse
   | eof                     { EOF }
   | "True"                  { TRUE }
   | "False"                 { FALSE }
-  | "!"                     { EXCLAM}
+  | "!"                     { EXCLAM }
+  | "~"                     { NOT }
   | "+"                     { PLUS }
   | "-"                     { MINUS }
   | "="                     { EQ }
