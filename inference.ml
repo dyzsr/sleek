@@ -94,44 +94,19 @@ let first ctx pi es =
     | Union (es1, es2) -> Set.union (aux es1) (aux es2)
     | Parallel (es1, es2) -> Set.zip ctx (aux es1) (aux es2)
     | Kleene es -> aux es
-    | Timed (Bottom, _) -> Set.empty
-    | Timed (Empty, _) -> Set.empty
-    | Timed (Instant i, t) ->
-        let t' = ctx |> Proofctx.new_term in
-        Set.from i (pi &&* (t' >=* Const 0) &&* (t' =* t)) (Some t')
-    | Timed (Union (es1, es2), t) -> aux (Union (Timed (es1, t), Timed (es2, t)))
-    | Timed (Parallel (es1, es2), t) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
-    | Timed ((Timed (_, t1) as es), t2) ->
-        aux es
-        |> Set.map (fun (i, pi, inner_t) ->
-               match inner_t with
-               | None         -> failwith "impossible"
-               | Some inner_t ->
-                   let pi' = pi &&* (t1 =* t2) in
-                   (i, pi', Some inner_t))
-    | Timed (es, t) ->
+    | Timed (es, _) ->
         aux es
         |> Set.map (fun (i, pi, inner_t) ->
                match inner_t with
                | None         ->
                    let t' = ctx |> Proofctx.new_term in
-                   let pi' = pi &&* (t' >=* Const 0) &&* (t' <=* t) in
-                   (i, pi', Some t')
-               | Some inner_t ->
-                   let pi' = pi &&* (inner_t <=* t) in
-                   (i, pi', Some inner_t))
+                   (i, pi, Some t')
+               | Some inner_t -> (i, pi, Some inner_t))
   in
   aux es
 
 
-let _check_imply p1 p2 =
-  let imply = p1 =>* p2 in
-  let sat = not (Checker.check (Not imply)) in
-  Printf.printf "%s : %B\n" (show_pi imply) sat;
-  sat
-
-
-let partial_deriv ctx (add_imply : Proofctx.fn_add_imply) (i, pi', t') (pi, es) =
+let partial_deriv ctx (i, _, t') (pi, es) =
   let rec aux (pi, es) =
     match es with
     | Bottom -> (False, Bottom)
@@ -158,39 +133,43 @@ let partial_deriv ctx (add_imply : Proofctx.fn_add_imply) (i, pi', t') (pi, es) 
     | Kleene es ->
         let pi, deriv = aux (pi, es) in
         (pi, Sequence (deriv, Kleene es))
-    | Timed (es, t) ->
-    match t' with
-    | None    -> (False, Bottom)
-    | Some t' ->
-    match es with
-    | Bottom -> (False, Bottom)
-    | Empty -> (False, Bottom)
-    | Instant j when Signals.(i |- j) ->
-        let pre = pi' &&* (t' =* t) in
-        let post = pi in
-        ctx |> add_imply ~pre ~post;
-        (True, Empty)
-    | Instant _ -> (False, Bottom)
-    | Sequence (es1, es2) ->
-        let t1 = ctx |> Proofctx.new_term in
-        let t2 = ctx |> Proofctx.new_term in
-        let pi, es = aux (pi, Sequence (Timed (es1, t1), Timed (es2, t2))) in
-        let pi = pi &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) &&* (t1 +* t2 =* t) in
-        (pi, es)
-    | Union (es1, es2) -> aux (pi, Union (Timed (es1, t), Timed (es2, t)))
-    | Parallel (es1, es2) -> aux (pi, Parallel (Timed (es1, t), Timed (es2, t)))
-    (* | Kleene es ->
-        let t1 = ctx |> Proofctx.new_term in
-        let t2 = ctx |> Proofctx.new_term in
-        let pi = pi &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) &&* (t1 +* t2 =* t) in
-        let es =
-        aux (pi, es) *)
-    | Timed (_, inner_t) ->
-        let pi, es = aux (pi, es) in
-        let pre = pi &&* (t =* inner_t) in
-        (pre, es)
-        (* ctx |> add_imply ~pre;
-           (True, es) *)
-    | _ -> failwith "not implemented"
+    | Timed (es, t) -> (
+        match t' with
+        | None    -> (False, Bottom)
+        | Some t' -> (
+            match es with
+            | Bottom ->
+                (* ctx |> Proofctx.add_precond (t =* Const 0); *)
+                (False, Bottom)
+            | Empty ->
+                ctx |> Proofctx.add_precond (t =* Const 0);
+                (False, Bottom)
+            | Instant j when Signals.(i |- j) ->
+                ctx |> Proofctx.add_precond (t =* t');
+                (True, Empty)
+            | Instant _ ->
+                ctx |> Proofctx.add_precond (t =* t');
+                (False, Bottom)
+            | Sequence (es1, es2) ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                ctx |> Proofctx.add_precond (t =* t1 +* t2);
+                aux (pi, Sequence (Timed (es1, t1), Timed (es2, t2)))
+            | Union (es1, es2) ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                ctx |> Proofctx.add_precond (t1 =* t ||* (t2 =* t));
+                aux (pi, Union (Timed (es1, t1), Timed (es2, t2)))
+            | Parallel (es1, es2) -> aux (pi, Parallel (Timed (es1, t), Timed (es2, t)))
+            (* | Kleene es ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                let pi = pi &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) &&* (t1 +* t2 =* t) in
+                let es =
+                aux (pi, es) *)
+            | Timed (_, inner_t) ->
+                ctx |> Proofctx.add_precond (t =* inner_t);
+                aux (pi, es)
+            | _ -> failwith "not implemented"))
   in
   aux (pi, es)

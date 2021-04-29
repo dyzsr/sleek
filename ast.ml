@@ -194,6 +194,7 @@ let disambiguate_simple_effects (pi, es) =
 
 let rec normalize_pi : pi -> pi = function
   (* reduction *)
+  | Atomic (Eq, t1, t2) when t1 = t2 -> True
   | And (True, pi) -> pi
   | And (pi, True) -> pi
   | And (False, _) -> False

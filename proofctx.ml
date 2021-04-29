@@ -6,30 +6,32 @@ let entail_rhs (SimpleEntail { rhs; _ }) = rhs
 
 type t = {
   mutable fresh_cnt : int;
-  mutable l_imply : pi;
-  mutable r_imply : pi;
-  entailments : simple_entailment list;
+  mutable precond : pi;
+  mutable postcond : pi;
+  mutable entails : simple_entailment list;
 }
 
-let make () = { fresh_cnt = 0; l_imply = True; r_imply = True; entailments = [] }
+let make () = { fresh_cnt = 0; precond = True; postcond = True; entails = [] }
+
+let clone ctx = { ctx with fresh_cnt = ctx.fresh_cnt }
 
 let add_entail (SimpleEntail { lhs; rhs } as v) ctx =
-  let entailments =
+  let entails =
     v
-    :: (ctx.entailments
+    :: (ctx.entails
        |> List.filter (fun x -> rhs = entail_lhs x)
        |> List.map entail_rhs
        |> List.map (fun rhs -> SimpleEntail { lhs; rhs }))
-    @ (ctx.entailments
+    @ (ctx.entails
       |> List.filter (fun x -> lhs = entail_rhs x)
       |> List.map entail_lhs
       |> List.map (fun lhs -> SimpleEntail { lhs; rhs }))
-    @ ctx.entailments
+    @ ctx.entails
   in
-  { ctx with entailments }
+  ctx.entails <- entails
 
 
-let exists_entail v ctx = List.exists (( = ) v) ctx.entailments
+let exists_entail v ctx = List.exists (( = ) v) ctx.entails
 
 let new_term ctx =
   let no = ctx.fresh_cnt in
@@ -39,40 +41,29 @@ let new_term ctx =
 
 type fn_add_imply = pre:Ast.pi -> ?post:Ast.pi -> t -> unit
 
-let add_l_imply ~pre ?(post = True) ctx =
-  match ctx.l_imply with
-  | Imply (hd, tl) -> ctx.l_imply <- pre =>* (post =>* (hd =>* tl))
-  | pi             -> ctx.l_imply <- pre =>* (post &&* pi)
+let add_precond cond ctx = ctx.precond <- cond =>* ctx.precond
 
+let add_postcond cond ctx = ctx.postcond <- cond &&* ctx.postcond
 
-let add_r_imply ~pre ?(post = True) ctx =
-  match ctx.r_imply with
-  | Imply (hd, tl) -> ctx.r_imply <- pre =>* (post =>* (hd =>* tl))
-  | pi             -> ctx.r_imply <- pre =>* (post &&* pi)
-
-
-let check_implies ctx =
-  let l_imply = Utils.(fixpoint ~f:normalize_pi) ctx.l_imply in
-  let r_imply = Utils.(fixpoint ~f:normalize_pi) ctx.r_imply in
-  let l = not (Checker.check (Not l_imply)) in
-  let r = not (Checker.check (Not r_imply)) in
-  (* if l_imply <> True && l_imply <> False then
-       Printf.printf "\027[2m<lhs> %s : %B\n" (show_pi l_imply) l;
-     if r_imply <> True && r_imply <> False then
-       Printf.printf "\027[2m<rhs> %s : %B\n" (show_pi r_imply) r; *)
-  ((not l) || r, l_imply, r_imply)
+let check_imply ctx =
+  let imply =
+    let rec aux = function
+      | Imply (hd, tl) -> Imply (hd, aux tl)
+      | pi             -> Imply (pi, ctx.postcond)
+    in
+    aux ctx.precond
+  in
+  let imply = Utils.fixpoint ~f:normalize_pi imply in
+  (not (Checker.check (Not imply)), imply)
 
 
 (* tests *)
 let () =
   let ctx = make () in
-  let ctx = ctx |> add_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}") in
+  ctx |> add_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}");
   assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}"));
-  let ctx =
-    ctx
-    |> add_entail (Syntax.parse_simple_entailment "True && {B} |- True && {A}")
-    |> add_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {B}")
-  in
+  ctx |> add_entail (Syntax.parse_simple_entailment "True && {B} |- True && {A}");
+  ctx |> add_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {B}");
   assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {B} |- True && {}"));
   assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {}"));
   assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {A}"));
