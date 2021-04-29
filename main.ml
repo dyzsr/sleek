@@ -185,7 +185,10 @@ let tests =
     "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
     "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
     "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
+    "t < 1 && {A}+{B} # t  |-  (t1 < 2 && t2 < 2) && ({A} # t1) + ({B} # t2) : true";
     "t < 1 && {A} # t  |-  t < 3 && (emp+{A}) # t : true";
+    "t < 1 && emp # t  |-  t < 3 && emp # t : true";
+    "t < 1 && emp # t  |-  t < 3 && (emp+{A}) # t : true";
     (* "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true"; *)
     "t < 3 && {A} # t  |-  t < 1 && (emp+{A}) # t : false";
     (* "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false"; *)

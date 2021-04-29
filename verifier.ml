@@ -1,5 +1,5 @@
 type subhistory = {
-  first : (Signals.t * Ast.pi * Ast.term option) option;
+  first : Inference.Set.elem option;
   mutable iterations : (string * Ast.simple_entailment) list;
   mutable unfoldings : subhistory list;
   mutable constraints : Ast.pi option;
@@ -33,11 +33,10 @@ let show_subhistory hist ~verbose =
     in
     let show_first =
       match hist.first with
-      | None            -> fun x -> x
-      | Some (i, pi, t) ->
+      | None        -> fun x -> x
+      | Some (i, t) ->
           let first =
-            Printf.sprintf "%s%s%s, %s%s, %s" Colors.magenta (Signals.show i) Colors.yellow
-              (Ast.show_pi pi) Colors.magenta
+            Printf.sprintf "%s%s, %s%s" Colors.magenta (Signals.show i) Colors.yellow
               (match t with
               | None   -> "_"
               | Some t -> Ast.show_term t)
@@ -123,8 +122,8 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
       {
         first =
           (match first_opt with
-          | None            -> None
-          | Some (i, pi, t) -> Some (i, Utils.fixpoint ~f:Ast.normalize_pi pi, t));
+          | None        -> None
+          | Some (i, t) -> Some (i, t));
         iterations = [];
         unfoldings = [];
         constraints = None;
@@ -141,11 +140,9 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
         verdict)
       else
         false
-    and unfold ctx ((pi1, es1) as lhs) ((_pi2, _) as rhs) =
-      let firsts = Inference.first ctx pi1 es1 in
+    and unfold ctx ((pi1, es1) as lhs) ((pi2, es2) as rhs) =
+      let firsts = Inference.first ctx es1 in
       if Inference.Set.is_empty firsts then (
-        (* ctx |> Proofctx.add_l_imply ~pre:pi1;
-           ctx |> Proofctx.add_r_imply ~pre:pi2; *)
         let verdict, constrnt = ctx |> Proofctx.check_imply in
         hist |> set_constraints constrnt;
         hist |> set_verdict verdict;
@@ -154,10 +151,10 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
         ctx |> Proofctx.add_entail (SimpleEntail { lhs; rhs });
         firsts
         |> Inference.Set.for_all (fun x ->
-               let lhs' = Inference.partial_deriv ctx x lhs in
-               let rhs' = Inference.partial_deriv ctx x rhs in
+               let es1 = Inference.partial_deriv ctx x es1 in
+               let es2 = Inference.partial_deriv ctx x es2 in
                let ctx = ctx |> Proofctx.clone in
-               let verdict, sub_hist = aux ctx (Some x) lhs' rhs' in
+               let verdict, sub_hist = aux ctx (Some x) (pi1, es1) (pi2, es2) in
                hist |> add_unfolding sub_hist;
                verdict))
     and normal lhs rhs =

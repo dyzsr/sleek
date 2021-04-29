@@ -1,7 +1,7 @@
 module Set : sig
   include module type of List
 
-  type elem = Signals.t * Ast.pi * Ast.term option
+  type elem = Signals.t * Ast.term option
 
   type t = elem list
 
@@ -9,7 +9,7 @@ module Set : sig
 
   val is_empty : t -> bool
 
-  val from : Signals.t -> Ast.pi -> Ast.term option -> t
+  val from : Signals.t -> Ast.term option -> t
 
   val union : t -> t -> t
 
@@ -18,6 +18,6 @@ end
 
 val nullable : Ast.instants -> bool
 
-val first : Proofctx.t -> Ast.pi -> Ast.instants -> Set.t
+val first : Proofctx.t -> Ast.instants -> Set.t
 
-val partial_deriv : Proofctx.t -> Set.elem -> Ast.simple_effects -> Ast.simple_effects
+val partial_deriv : Proofctx.t -> Set.elem -> Ast.instants -> Ast.instants

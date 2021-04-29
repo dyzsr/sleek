@@ -80,7 +80,7 @@ let rec show_pi_with_prec lprec rprec = function
       show_pi_with_prec 0 20 p1 ^ " ⋁ " ^ show_pi_with_prec 20 0 p2
       |> if lprec >= 20 || rprec > 20 then enclose else nothing
   | Imply (p1, p2)      ->
-      show_pi_with_prec 0 10 p1 ^ " ⇒ " ^ show_pi_with_prec 10 0 p2
+      show_pi_with_prec 0 10 p1 ^ " → " ^ show_pi_with_prec 10 0 p2
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
   | Not p               -> "¬" ^ show_pi_with_prec 90 0 p
 
@@ -146,7 +146,7 @@ type simple_entailment =
     }
 
 let show_simple_entailment (SimpleEntail { lhs; rhs }) =
-  Printf.sprintf "%s  ├─  %s" (show_simple_effects lhs) (show_simple_effects rhs)
+  Printf.sprintf "%s  →  %s" (show_simple_effects lhs) (show_simple_effects rhs)
 
 
 type entailment =
@@ -156,7 +156,7 @@ type entailment =
     }
 
 let show_entailment (Entail { lhs; rhs }) =
-  Printf.sprintf "%s  ├─  %s" (show_effects lhs) (show_effects rhs)
+  Printf.sprintf "%s  →  %s" (show_effects lhs) (show_effects rhs)
 
 
 type specification = Spec of entailment * bool
@@ -274,7 +274,6 @@ let rec normalize_es : instants -> instants = function
       else
         Parallel (es1, normalize_es es2)
   | Kleene es -> Kleene (normalize_es es)
-  | Timed (Empty, _) -> Empty
   | Timed (es, t) -> Timed (normalize_es es, t)
   | es -> es
 
