@@ -20,93 +20,168 @@ let ( ||* ) a b = Or (a, b)
 
 let ( =>* ) a b = Imply (a, b)
 
-let trim_constraints pi terms =
-  let rec get_vars acc = function
-    | Var v          -> v :: acc
-    | Bar v          -> v :: acc
-    | Plus (t1, t2)  ->
-        let acc = get_vars acc t1 in
-        let acc = get_vars acc t2 in
-        acc
-    | Minus (t1, t2) ->
-        let acc = get_vars acc t1 in
-        let acc = get_vars acc t2 in
-        acc
-    | _              -> acc
-  in
-  let all_vars = ref [] in
-  let () =
-    List.iter
-      (fun t ->
-        let vars = get_vars [] t in
-        List.iter (fun x -> all_vars := x :: !all_vars) vars)
-      terms
+let ( !* ) a = Not a
+
+let rec vars_of_term acc = function
+  | Var v          -> v :: acc
+  | Bar v          -> v :: acc
+  | Gen n          -> ("@" ^ string_of_int n) :: acc
+  | Plus (t1, t2)  ->
+      let acc = vars_of_term acc t1 in
+      let acc = vars_of_term acc t2 in
+      acc
+  | Minus (t1, t2) ->
+      let acc = vars_of_term acc t1 in
+      let acc = vars_of_term acc t2 in
+      acc
+  | _              -> acc
+
+
+let rec visit_pi f = function
+  | True               -> ()
+  | False              -> ()
+  | Atomic (_, t1, t2) -> f t1 t2
+  | And (p1, p2)       -> visit_pi f p1; visit_pi f p2
+  | Or (p1, p2)        -> visit_pi f p1; visit_pi f p2
+  | Imply (p1, p2)     -> visit_pi f p1; visit_pi f p2
+  | Not pi             -> visit_pi f pi
+
+
+let map2 ?(sn = fun x -> x) ?(ns = fun y -> y) ~ss = function
+  | None, None     -> None
+  | Some x, None   -> Some (sn x)
+  | None, Some y   -> Some (ns y)
+  | Some x, Some y -> Some (ss x y)
+
+
+let rec filter_pi f = function
+  | True                     -> Some True
+  | False                    -> Some False
+  | Atomic (_, t1, t2) as pi -> if f t1 t2 then Some pi else None
+  | And (p1, p2)             -> map2 ~ss:( &&* ) (filter_pi f p1, filter_pi f p2)
+  | Or (p1, p2)              -> map2 ~ss:( ||* ) (filter_pi f p1, filter_pi f p2)
+  | Imply (p1, p2)           -> map2 ~ss:( =>* ) ~sn:( !* ) (filter_pi f p1, filter_pi f p2)
+  | Not pi                   -> (
+      match filter_pi f pi with
+      | None   -> None
+      | Some p -> Some (Not p))
+
+
+let filter_by_relevance pi used_vars =
+  let get_vars t1 t2 =
+    let vars = vars_of_term [] t1 in
+    let vars = vars_of_term vars t2 in
+    vars
   in
   let module Dsu = Map.Make (String) in
   let dsu = ref Dsu.empty in
-  let rel = ref Dsu.empty in
-  let () =
-    List.iter
-      (fun x ->
-        dsu := !dsu |> Dsu.add x x;
-        rel := !rel |> Dsu.add x true)
-      !all_vars
-  in
+  List.iter (fun x -> dsu := !dsu |> Dsu.add x (x, true)) used_vars;
   let find x =
     match !dsu |> Dsu.find_opt x with
-    | None   -> false
-    | Some x -> !rel |> Dsu.find x
+    | None ->
+        dsu := !dsu |> Dsu.add x (x, false);
+        (x, false)
+    | Some (x', rel) when x = x' -> (x, rel)
+    | Some (x', _) ->
+        let x', rel = !dsu |> Dsu.find x' in
+        dsu := !dsu |> Dsu.add x (x', rel);
+        (x', rel)
   in
   let union x y =
-    match (!dsu |> Dsu.find_opt x, !dsu |> Dsu.find_opt y) with
-    | None, None     ->
-        dsu := !dsu |> Dsu.add x x;
-        dsu := !dsu |> Dsu.add y x
-    | Some x, None   ->
-        dsu := !dsu |> Dsu.add y x;
-        rel := !rel |> Dsu.add y (!rel |> Dsu.find x)
-    | None, Some y   ->
-        dsu := !dsu |> Dsu.add x y;
-        rel := !rel |> Dsu.add x (!rel |> Dsu.find y)
-    | Some x, Some y ->
-        dsu := !dsu |> Dsu.add y x;
-        rel := !rel |> Dsu.add y (!rel |> Dsu.find x || !rel |> Dsu.find y)
+    let x', rel_x = find x in
+    let y', rel_y = find y in
+    dsu := !dsu |> Dsu.add x' (x', rel_x || rel_y);
+    dsu := !dsu |> Dsu.add y' (x', rel_x || rel_y)
   in
-  let rec find_relevant = function
-    | True               -> ()
-    | False              -> ()
-    | Atomic (_, t1, t2) ->
-        let vars = get_vars [] t1 in
-        let vars = get_vars vars t2 in
-        let _ =
-          List.fold_left
-            (fun prev x ->
-              (match prev with
-              | None      -> ()
-              | Some prev -> union prev x);
-              Some x)
-            None vars
-        in
-        ()
-    | And (p1, p2)       -> find_relevant p1; find_relevant p2
-    | Or (p1, p2)        -> find_relevant p1; find_relevant p2
-    | Imply (p1, p2)     -> find_relevant p1; find_relevant p2
-    | Not pi             -> find_relevant pi
+  let find_relevent t1 t2 =
+    let vars = get_vars t1 t2 in
+    let _ =
+      List.fold_left
+        (fun prev x ->
+          (match prev with
+          | None      -> ()
+          | Some prev -> union prev x);
+          Some x)
+        None vars
+    in
+    ()
   in
-  find_relevant pi;
-  let rec filter_pi = function
-    | True                     -> True
-    | False                    -> False
-    | Atomic (_, t1, t2) as pi ->
-        let vars = get_vars [] t1 in
-        let vars = get_vars vars t2 in
-        if List.for_all (fun x -> find x) vars then pi else True
-    | And (p1, p2)             -> And (filter_pi p1, filter_pi p2)
-    | Or (p1, p2)              -> Or (filter_pi p1, filter_pi p2)
-    | Imply (p1, p2)           -> Imply (filter_pi p1, filter_pi p2)
-    | Not pi                   -> Not (filter_pi pi)
+  visit_pi find_relevent pi;
+  let f t1 t2 =
+    let vars = get_vars t1 t2 in
+    List.exists (fun x -> snd (find x)) vars
   in
-  filter_pi pi
+  match filter_pi f pi with
+  | None    -> True
+  | Some pi -> pi
+
+
+let filter_by_occurence pi =
+  let get_vars t1 t2 =
+    let vars = vars_of_term [] t1 in
+    let vars = vars_of_term vars t2 in
+    let vars = List.sort_uniq Stdlib.compare vars in
+    vars
+  in
+  let module Cnt = Map.Make (String) in
+  let cnt = ref Cnt.empty in
+  let get_cnt x =
+    match !cnt |> Cnt.find_opt x with
+    | None   -> 0
+    | Some v -> v
+  in
+  let inc_cnt x =
+    cnt :=
+      !cnt
+      |> Cnt.update x (function
+           | None   -> Some 1
+           | Some v -> Some (v + 1))
+  in
+  let dec_cnt x =
+    cnt :=
+      !cnt
+      |> Cnt.update x (function
+           | None -> failwith "invalid dec_cnt"
+           | Some v when v <= 0 -> failwith "invalid dec_cnt"
+           | Some v -> Some (v - 1))
+  in
+  let inc t1 t2 =
+    let vars = get_vars t1 t2 in
+    List.iter (fun x -> inc_cnt x) vars
+  in
+  visit_pi inc pi;
+  let changing = ref true in
+  while !changing do
+    changing := false;
+    let dec t1 t2 =
+      let vars = get_vars t1 t2 in
+      if List.exists (fun x -> get_cnt x == 1) vars then (
+        changing := true;
+        List.iter (fun x -> dec_cnt x) vars)
+    in
+    visit_pi dec pi
+  done;
+  let f t1 t2 =
+    let vars = get_vars t1 t2 in
+    List.for_all (fun x -> get_cnt x > 0) vars
+  in
+  match filter_pi f pi with
+  | None    -> True
+  | Some pi -> pi
+
+
+let trim_constraints pi terms =
+  let used_vars = ref [] in
+  let () =
+    List.iter
+      (fun t ->
+        let vars = vars_of_term [] t in
+        List.iter (fun x -> used_vars := x :: !used_vars) vars)
+      terms
+  in
+  let pi = filter_by_relevance pi !used_vars in
+  let pi = filter_by_occurence pi in
+  pi
 
 
 let trim_simple_effects (pi, es) =

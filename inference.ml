@@ -58,6 +58,18 @@ module Set = struct
     ()
 end
 
+let rec is_bot = function
+  | Bottom              -> true
+  | Empty               -> false
+  | Instant _           -> false
+  | Await _             -> false
+  | Sequence (es1, es2) -> is_bot es1 || is_bot es2
+  | Union (es1, es2)    -> is_bot es1 && is_bot es2
+  | Parallel (es1, es2) -> is_bot es1 || is_bot es2
+  | Kleene _            -> false
+  | Timed (es, _)       -> is_bot es
+
+
 let rec nullable = function
   | Bottom              -> false
   | Empty               -> true
@@ -120,32 +132,42 @@ let partial_deriv ctx (i, t') es =
     | Kleene es ->
         let deriv = aux es in
         Sequence (deriv, Kleene es)
-    | Timed (es, t) ->
-        let deriv =
-          match t' with
-          | None    -> Bottom
-          | Some t' -> (
-              match es with
-              | Bottom -> Bottom
-              | Empty -> Bottom
-              | Instant j when Signals.(i |- j) ->
-                  ctx |> Proofctx.add_precond (t =* t');
-                  Empty
-              | Instant _ -> Bottom
-              | Sequence (es1, es2) ->
-                  let t1 = ctx |> Proofctx.new_term in
-                  let t2 = ctx |> Proofctx.new_term in
-                  ctx |> Proofctx.add_precond (t =* t1 +* t2);
-                  aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
-              | Union (es1, es2) -> aux (Union (Timed (es1, t), Timed (es2, t)))
-              | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
-              | Timed (_, inner_t) ->
-                  ctx |> Proofctx.add_precond (t =* inner_t);
-                  aux es
-              | _ -> failwith "not implemented")
-        in
-        if deriv <> Bottom then
-          ctx |> Proofctx.track_term t;
-        deriv
+    | Timed (es, t) -> (
+        match t' with
+        | None    -> Bottom
+        | Some t' -> (
+            match es with
+            | Bottom -> Bottom
+            | Empty -> Bottom
+            | Instant j when Signals.(i |- j) ->
+                ctx |> Proofctx.track_term t';
+                ctx |> Proofctx.add_precond (t =* t');
+                Empty
+            | Instant _ -> Bottom
+            | Sequence (es1, es2) ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) in
+                ctx |> Proofctx.add_precond cond;
+                aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
+            | Union (es1, es2) ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                let deriv1 = aux (Timed (es1, t1)) in
+                let deriv2 = aux (Timed (es2, t2)) in
+                let cond =
+                  match (is_bot deriv1, is_bot deriv2) with
+                  | false, false -> t =* t1 ||* (t =* t2)
+                  | false, true  -> t =* t1
+                  | true, false  -> t =* t2
+                  | true, true   -> True
+                in
+                ctx |> Proofctx.add_precond cond;
+                Union (deriv1, deriv2)
+            | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
+            | Timed (_, inner_t) ->
+                ctx |> Proofctx.add_precond (t =* inner_t);
+                aux es
+            | _ -> failwith "not implemented"))
   in
   aux es

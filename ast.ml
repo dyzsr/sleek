@@ -142,4 +142,4 @@ let show_entailment (Entail { lhs; rhs }) =
 type specification = Spec of entailment * bool
 
 let show_specification (Spec (entailment, assertion)) =
-  Printf.sprintf "%s %s: %B%s" (show_entailment entailment) Colors.magenta assertion Colors.reset
+  Printf.sprintf "%s %s:: %B%s" (show_entailment entailment) Colors.magenta assertion Colors.reset

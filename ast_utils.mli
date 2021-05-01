@@ -20,6 +20,8 @@ val ( ||* ) : pi -> pi -> pi
 
 val ( =>* ) : pi -> pi -> pi
 
+val ( !* ) : pi -> pi
+
 val trim_constraints : pi -> term list -> pi
 
 val trim_simple_effects : simple_effects -> simple_effects

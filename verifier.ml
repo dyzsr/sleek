@@ -17,9 +17,10 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
       let verdict =
         firsts
         |> Inference.Set.for_all (fun x ->
+               let ctx = Proofctx.clone ctx in
                let es1 = Inference.partial_deriv ctx x es1 in
                let es2 = Inference.partial_deriv ctx x es2 in
-               let verdict, sub_hist = aux (ctx |> Proofctx.clone) (Some x) (pi1, es1) (pi2, es2) in
+               let verdict, sub_hist = aux ctx (Some x) (pi1, es1) (pi2, es2) in
                hist |> History.add_unfolding sub_hist;
                verdict)
       in

@@ -2,14 +2,14 @@ open Ast
 open Ast_utils
 
 type t = {
-  mutable fresh_cnt : int;
+  fresh_cnt : int ref;
   mutable precond : pi;
   mutable postcond : pi;
   mutable terms : term list;
   mutable entails : (instants * instants) list;
 }
 
-let make () = { fresh_cnt = 0; precond = True; postcond = True; terms = []; entails = [] }
+let make () = { fresh_cnt = ref 0; precond = True; postcond = True; terms = []; entails = [] }
 
 let clone ctx = { ctx with fresh_cnt = ctx.fresh_cnt }
 
@@ -30,8 +30,8 @@ let add_entail lhs rhs ctx =
 let exists_entail lhs rhs ctx = List.exists (( = ) (lhs, rhs)) ctx.entails
 
 let new_term ctx =
-  let no = ctx.fresh_cnt in
-  ctx.fresh_cnt <- no + 1;
+  let no = !(ctx.fresh_cnt) in
+  ctx.fresh_cnt := no + 1;
   Ast.Gen no
 
 
@@ -47,15 +47,14 @@ let tracked_terms ctx =
 
 
 let check_constraints ctx =
-  let precond = ctx.precond in
-  let postcond = Ast_utils.trim_constraints ctx.postcond (ctx |> tracked_terms) in
   let constrnt =
     let rec aux = function
       | Imply (hd, tl) -> Imply (hd, aux tl)
-      | pi             -> Imply (pi, postcond)
+      | pi             -> Imply (pi, ctx.postcond)
     in
-    aux precond
+    aux ctx.precond
   in
+  let constrnt = Ast_utils.trim_constraints constrnt (ctx |> tracked_terms) in
   let constrnt = Utils.fixpoint ~f:normalize_pi constrnt in
   (not (Checker.check (Not constrnt)), constrnt)
 

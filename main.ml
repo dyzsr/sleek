@@ -186,14 +186,14 @@ let tests =
     "t < 1 && {A} # t  |-  t < 3 && (emp+{A}) # t : true";
     "t < 1 && emp # t  |-  t < 3 && emp # t : true";
     "t < 1 && emp # t  |-  t < 3 && (emp+{A}) # t : true";
-    (* "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true"; *)
+    "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true";
     "t < 3 && {A} # t  |-  t < 1 && (emp+{A}) # t : false";
-    (* "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false"; *)
+    "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false";
     "t < 1 && (emp+{A}) # t  |-  t < 3 && (emp+{A}) # t : true";
     "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
     "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
-    (* "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false"; *)
-    (* "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false"; *)
+    "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
+    "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
     "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
     (* disjunctions *)
     "True && {A}  |-  True && {A} || True && {B} : true";

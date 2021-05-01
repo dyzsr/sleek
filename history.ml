@@ -86,21 +86,21 @@ let show_entry hist ~verbose =
       | None       -> id
       | Some terms ->
           List.cons
-            (print "|TERMS|"
+            (print "(TERMS)"
                (Colors.yellow ^ (List.map Ast.show_term terms |> String.concat ", ") ^ Colors.reset))
     in
     let show_constraints =
       match hist.constraints with
       | None      -> id
       | Some True -> id
-      | Some con  -> List.cons (print "|CHECK|" (Ast.show_pi con))
+      | Some con  -> List.cons (print "(CHECK)" (Ast.show_pi con))
     in
     let show_verdict =
       match hist.verdict with
       | None         -> id
       | Some verdict ->
           List.cons
-            (print "|RESULT|"
+            (print "(RESULT)"
                (Colors.blue ^ Colors.italic
                ^ (if verdict then "SUCCESS" else "FAILURE")
                ^ Colors.reset))
