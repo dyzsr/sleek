@@ -18,6 +18,7 @@
   inference
   proofctx
   checker
+  history
   verifier
   colors
   utils

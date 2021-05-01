@@ -14,7 +14,7 @@ let rec show_term_with_prec lprec rprec = function
   | Const i        -> string_of_int i
   | Var v          -> v
   | Bar v          -> v
-  | Gen n          -> "t" ^ string_of_int n ^ "'"
+  | Gen n          -> "@" ^ string_of_int n
   | Plus (t1, t2)  ->
       show_term_with_prec 0 50 t1 ^ "+" ^ show_term_with_prec 50 0 t2
       |> if lprec >= 50 || rprec > 50 then enclose else nothing

@@ -120,29 +120,32 @@ let partial_deriv ctx (i, t') es =
     | Kleene es ->
         let deriv = aux es in
         Sequence (deriv, Kleene es)
-    | Timed (es, t) -> (
-        match t' with
-        | None    -> Bottom
-        | Some t' -> (
-            match es with
-            | Bottom -> Bottom
-            | Empty -> Bottom
-            | Instant j when Signals.(i |- j) ->
-                ctx |> Proofctx.add_precond (t =* t');
-                Empty
-            | Instant _ ->
-                (* ctx |> Proofctx.add_precond (t =* t'); *)
-                Bottom
-            | Sequence (es1, es2) ->
-                let t1 = ctx |> Proofctx.new_term in
-                let t2 = ctx |> Proofctx.new_term in
-                ctx |> Proofctx.add_precond (t =* t1 +* t2);
-                aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
-            | Union (es1, es2) -> aux (Union (Timed (es1, t), Timed (es2, t)))
-            | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
-            | Timed (_, inner_t) ->
-                ctx |> Proofctx.add_precond (t =* inner_t);
-                aux es
-            | _ -> failwith "not implemented"))
+    | Timed (es, t) ->
+        let deriv =
+          match t' with
+          | None    -> Bottom
+          | Some t' -> (
+              match es with
+              | Bottom -> Bottom
+              | Empty -> Bottom
+              | Instant j when Signals.(i |- j) ->
+                  ctx |> Proofctx.add_precond (t =* t');
+                  Empty
+              | Instant _ -> Bottom
+              | Sequence (es1, es2) ->
+                  let t1 = ctx |> Proofctx.new_term in
+                  let t2 = ctx |> Proofctx.new_term in
+                  ctx |> Proofctx.add_precond (t =* t1 +* t2);
+                  aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
+              | Union (es1, es2) -> aux (Union (Timed (es1, t), Timed (es2, t)))
+              | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
+              | Timed (_, inner_t) ->
+                  ctx |> Proofctx.add_precond (t =* inner_t);
+                  aux es
+              | _ -> failwith "not implemented")
+        in
+        if deriv <> Bottom then
+          ctx |> Proofctx.track_term t;
+        deriv
   in
   aux es

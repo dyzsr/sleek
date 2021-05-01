@@ -20,9 +20,10 @@ let ( ||* ) a b = Or (a, b)
 
 let ( =>* ) a b = Imply (a, b)
 
-let trim_irrelevant_pi (pi, es) =
+let trim_constraints pi terms =
   let rec get_vars acc = function
     | Var v          -> v :: acc
+    | Bar v          -> v :: acc
     | Plus (t1, t2)  ->
         let acc = get_vars acc t1 in
         let acc = get_vars acc t2 in
@@ -33,42 +34,24 @@ let trim_irrelevant_pi (pi, es) =
         acc
     | _              -> acc
   in
-  let terms = ref [] in
-  let rec get_all_terms = function
-    | Bottom              -> ()
-    | Empty               -> ()
-    | Instant _           -> ()
-    | Await _             -> ()
-    | Sequence (es1, es2) -> get_all_terms es1; get_all_terms es2
-    | Union (es1, es2)    -> get_all_terms es1; get_all_terms es2
-    | Parallel (es1, es2) -> get_all_terms es1; get_all_terms es2
-    | Kleene es           -> get_all_terms es
-    | Timed (es, t)       ->
-        let rec filter = function
-          | Bottom              -> false
-          | Empty               -> false
-          | Instant _           -> true
-          | Await _             -> true
-          | Sequence (es1, es2) -> filter es1 || filter es2
-          | Union (es1, es2)    -> filter es1 || filter es2
-          | Parallel (es1, es2) -> filter es1 || filter es2
-          | Kleene es           -> filter es
-          | Timed (es, _)       -> filter es
-        in
-        if filter es then (
-          get_all_terms es;
-          let vars = get_vars [] t in
-          List.iter (fun x -> terms := x :: !terms) vars)
+  let all_vars = ref [] in
+  let () =
+    List.iter
+      (fun t ->
+        let vars = get_vars [] t in
+        List.iter (fun x -> all_vars := x :: !all_vars) vars)
+      terms
   in
-  get_all_terms es;
   let module Dsu = Map.Make (String) in
   let dsu = ref Dsu.empty in
   let rel = ref Dsu.empty in
-  List.iter
-    (fun x ->
-      dsu := !dsu |> Dsu.add x x;
-      rel := !rel |> Dsu.add x true)
-    !terms;
+  let () =
+    List.iter
+      (fun x ->
+        dsu := !dsu |> Dsu.add x x;
+        rel := !rel |> Dsu.add x true)
+      !all_vars
+  in
   let find x =
     match !dsu |> Dsu.find_opt x with
     | None   -> false
@@ -123,7 +106,24 @@ let trim_irrelevant_pi (pi, es) =
     | Imply (p1, p2)           -> Imply (filter_pi p1, filter_pi p2)
     | Not pi                   -> Not (filter_pi pi)
   in
-  let pi = filter_pi pi in
+  filter_pi pi
+
+
+let trim_simple_effects (pi, es) =
+  let terms = ref [] in
+  let rec get_all_terms = function
+    | Bottom              -> ()
+    | Empty               -> ()
+    | Instant _           -> ()
+    | Await _             -> ()
+    | Sequence (es1, es2) -> get_all_terms es1; get_all_terms es2
+    | Union (es1, es2)    -> get_all_terms es1; get_all_terms es2
+    | Parallel (es1, es2) -> get_all_terms es1; get_all_terms es2
+    | Kleene es           -> get_all_terms es
+    | Timed (_, t)        -> terms := t :: !terms
+  in
+  get_all_terms es;
+  let pi = trim_constraints pi !terms in
   (pi, es)
 
 

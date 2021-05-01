@@ -14,4 +14,8 @@ val add_precond : Ast.pi -> t -> unit
 
 val add_postcond : Ast.pi -> t -> unit
 
-val check_imply : t -> bool * Ast.pi
+val track_term : Ast.term -> t -> unit
+
+val tracked_terms : t -> Ast.term list
+
+val check_constraints : t -> bool * Ast.pi

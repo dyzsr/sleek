@@ -5,10 +5,11 @@ type t = {
   mutable fresh_cnt : int;
   mutable precond : pi;
   mutable postcond : pi;
-  mutable entails : (Ast.instants * Ast.instants) list;
+  mutable terms : term list;
+  mutable entails : (instants * instants) list;
 }
 
-let make () = { fresh_cnt = 0; precond = True; postcond = True; entails = [] }
+let make () = { fresh_cnt = 0; precond = True; postcond = True; terms = []; entails = [] }
 
 let clone ctx = { ctx with fresh_cnt = ctx.fresh_cnt }
 
@@ -38,16 +39,25 @@ let add_precond cond ctx = ctx.precond <- cond =>* ctx.precond
 
 let add_postcond cond ctx = ctx.postcond <- cond &&* ctx.postcond
 
-let check_imply ctx =
-  let imply =
+let track_term term ctx = ctx.terms <- term :: ctx.terms
+
+let tracked_terms ctx =
+  ctx.terms <- List.sort_uniq Stdlib.compare ctx.terms;
+  ctx.terms
+
+
+let check_constraints ctx =
+  let precond = ctx.precond in
+  let postcond = Ast_utils.trim_constraints ctx.postcond (ctx |> tracked_terms) in
+  let constrnt =
     let rec aux = function
       | Imply (hd, tl) -> Imply (hd, aux tl)
-      | pi             -> Imply (pi, ctx.postcond)
+      | pi             -> Imply (pi, postcond)
     in
-    aux ctx.precond
+    aux precond
   in
-  let imply = Utils.fixpoint ~f:normalize_pi imply in
-  (not (Checker.check (Not imply)), imply)
+  let constrnt = Utils.fixpoint ~f:normalize_pi constrnt in
+  (not (Checker.check (Not constrnt)), constrnt)
 
 
 (* tests *)
