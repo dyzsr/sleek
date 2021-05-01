@@ -27,7 +27,7 @@ let add_iteration (label, es) hist =
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
 
-let set_terms terms hist = hist.terms <- Some terms
+let set_terms terms hist = if List.length terms > 0 then hist.terms <- Some terms
 
 let set_constraints constrnt hist = hist.constraints <- Some constrnt
 

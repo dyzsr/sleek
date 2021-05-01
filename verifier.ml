@@ -55,9 +55,11 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
         check ())
       else if bot_rhs rhs then (
         hist |> History.add_iteration ("Bot-RHS", SimpleEntail { lhs; rhs });
+        hist |> History.set_verdict false;
         false)
       else if disprove lhs rhs then (
         hist |> History.add_iteration ("DISPROVE", SimpleEntail { lhs; rhs });
+        hist |> History.set_verdict false;
         false)
       else if reoccur ctx lhs rhs then (
         hist |> History.add_iteration ("REOCCUR", SimpleEntail { lhs; rhs });
