@@ -1,4 +1,5 @@
 open Ast
+open Ast_utils
 
 module Set = struct
   include List
@@ -130,7 +131,7 @@ let partial_deriv ctx (i, t') es =
                 ctx |> Proofctx.add_precond (t =* t');
                 Empty
             | Instant _ ->
-                ctx |> Proofctx.add_precond (t =* t');
+                (* ctx |> Proofctx.add_precond (t =* t'); *)
                 Bottom
             | Sequence (es1, es2) ->
                 let t1 = ctx |> Proofctx.new_term in

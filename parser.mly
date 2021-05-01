@@ -15,11 +15,13 @@
 %token <string> EVENT "event"
 %token <int> INT "int"
 
-%start specification only_entailment only_effects
+%start specification only_entailment
+%start only_effects only_instants
 %start simple_entailment
 %type <Ast.specification> specification
 %type <Ast.entailment> only_entailment
 %type <Ast.effects> only_effects
+%type <Ast.instants> only_instants
 %type <Ast.simple_entailment> simple_entailment
 
 %right "=>"
@@ -37,10 +39,13 @@ specification:
     e=entailment ":" a=assertion "eof" { Ast.Spec (e, a) }
 
 only_entailment:
-    e=entailment "eof"        { e }
+    e=entailment "eof"  { e }
 
 only_effects:
-    l=effects "eof"  { l }
+    l=effects "eof"     { l }
+
+only_instants:
+    es=instants "eof"   { es }
 
 simple_entailment:
     lhs=simple_effects "|-" rhs=simple_effects "eof" { Ast.SimpleEntail {lhs; rhs} }
@@ -68,22 +73,22 @@ pi:
 
 paren_pi:
   | pi=pi                             { pi }
-  | pi1=paren_pi "&&" pi2=paren_pi    { Ast.(pi1 &&* pi2) }
-  | pi1=paren_pi "||" pi2=paren_pi    { Ast.(pi1 ||* pi2) }
-  | pi1=paren_pi "=>" pi2=paren_pi    { Ast.(pi1 =>* pi2) }
+  | pi1=paren_pi "&&" pi2=paren_pi    { Ast_utils.(pi1 &&* pi2) }
+  | pi1=paren_pi "||" pi2=paren_pi    { Ast_utils.(pi1 ||* pi2) }
+  | pi1=paren_pi "=>" pi2=paren_pi    { Ast_utils.(pi1 =>* pi2) }
 
 atomic:
-    t1=term "=" t2=term               { Ast.(t1 =* t2) }
-  | t1=term "<" t2=term               { Ast.(t1 <* t2) }
-  | t1=term "<=" t2=term              { Ast.(t1 <=* t2) }
-  | t1=term ">" t2=term               { Ast.(t1 >* t2) }
-  | t1=term ">=" t2=term              { Ast.(t1 >=* t2) }
+    t1=term "=" t2=term               { Ast_utils.(t1 =* t2) }
+  | t1=term "<" t2=term               { Ast_utils.(t1 <* t2) }
+  | t1=term "<=" t2=term              { Ast_utils.(t1 <=* t2) }
+  | t1=term ">" t2=term               { Ast_utils.(t1 >* t2) }
+  | t1=term ">=" t2=term              { Ast_utils.(t1 >=* t2) }
 
 term:
     i="int"                           { Ast.Const i }
   | v="var"                           { Ast.Var v }
-  | t1=term "+" t2=term               { Ast.(t1 +* t2) }
-  | t1=term "-" t2=term               { Ast.(t1 -* t2) }
+  | t1=term "+" t2=term               { Ast_utils.(t1 +* t2) }
+  | t1=term "-" t2=term               { Ast_utils.(t1 -* t2) }
 
 instants:
     "_|_"                             { Ast.Bottom }

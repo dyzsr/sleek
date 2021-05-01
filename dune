@@ -13,6 +13,7 @@
   parser
   syntax
   ast
+  ast_utils
   signals
   inference
   proofctx

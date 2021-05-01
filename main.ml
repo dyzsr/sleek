@@ -8,14 +8,11 @@ let tests =
     "True && emp  |-  True && {}  : false";
     "True && emp  |-  True && {A} : false";
     "True && emp  |-  True && emp : true";
-    "True && emp  |-  True && emp : true";
     "True && _|_  |-  True && emp  : true";
-    "True && _|_  |-  True && {}   : true";
-    "True && _|_  |-  False && {}  : true";
-    "True && _|_  |-  False && {}  : true";
-    "True && _|_  |-  False && _|_ : true";
-    "False && {}  |-  True && {}   : true";
-    "True && {}   |-  False && _|_ : false";
+    "True && _|_  |-  True && {}  : true";
+    "True && _|_  |-  True && _|_ : true";
+    "True && {}   |-  True && {}  : true";
+    "True && {}   |-  True && _|_ : false";
     "True && {} .  _|_  |-  True && _|_ : true";
     "True && {} +  _|_  |-  True && _|_ : false";
     "True && {} // _|_  |-  True && _|_ : true";
@@ -202,6 +199,9 @@ let tests =
     "True && {A}  |-  True && {A} || True && {B} : true";
     "True && {A} || True && {B}  |-  True && {}  : true";
     "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
+    (* irrelevant constraints *)
+    "t < 1 && {A}  |-  t < 3 && {A} : true";
+    "t < 1 && {A}  |-  (t1 < 3 && t2 < 3) && {A} + ({A}#t2) : true";
   ]
 
 

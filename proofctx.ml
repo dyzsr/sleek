@@ -1,45 +1,38 @@
 open Ast
-
-let entail_lhs (SimpleEntail { lhs; _ }) = lhs
-
-let entail_rhs (SimpleEntail { rhs; _ }) = rhs
+open Ast_utils
 
 type t = {
   mutable fresh_cnt : int;
   mutable precond : pi;
   mutable postcond : pi;
-  mutable entails : simple_entailment list;
+  mutable entails : (Ast.instants * Ast.instants) list;
 }
 
 let make () = { fresh_cnt = 0; precond = True; postcond = True; entails = [] }
 
 let clone ctx = { ctx with fresh_cnt = ctx.fresh_cnt }
 
-let add_entail (SimpleEntail { lhs; rhs } as v) ctx =
+let add_entail lhs rhs ctx =
   let entails =
-    v
+    (lhs, rhs)
     :: (ctx.entails
-       |> List.filter (fun x -> rhs = entail_lhs x)
-       |> List.map entail_rhs
-       |> List.map (fun rhs -> SimpleEntail { lhs; rhs }))
+       |> List.filter (fun (lhs', _) -> rhs = lhs')
+       |> List.map (fun (_, rhs') -> (lhs, rhs')))
     @ (ctx.entails
-      |> List.filter (fun x -> lhs = entail_rhs x)
-      |> List.map entail_lhs
-      |> List.map (fun lhs -> SimpleEntail { lhs; rhs }))
+      |> List.filter (fun (_, rhs') -> lhs = rhs')
+      |> List.map (fun (lhs', _) -> (lhs', rhs)))
     @ ctx.entails
   in
   ctx.entails <- entails
 
 
-let exists_entail v ctx = List.exists (( = ) v) ctx.entails
+let exists_entail lhs rhs ctx = List.exists (( = ) (lhs, rhs)) ctx.entails
 
 let new_term ctx =
   let no = ctx.fresh_cnt in
   ctx.fresh_cnt <- no + 1;
   Ast.Gen no
 
-
-type fn_add_imply = pre:Ast.pi -> ?post:Ast.pi -> t -> unit
 
 let add_precond cond ctx = ctx.precond <- cond =>* ctx.precond
 
@@ -60,11 +53,11 @@ let check_imply ctx =
 (* tests *)
 let () =
   let ctx = make () in
-  ctx |> add_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}");
-  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A} |- True && {}"));
-  ctx |> add_entail (Syntax.parse_simple_entailment "True && {B} |- True && {A}");
-  ctx |> add_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {B}");
-  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {B} |- True && {}"));
-  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {}"));
-  assert (ctx |> exists_entail (Syntax.parse_simple_entailment "True && {A, B} |- True && {A}"));
+  ctx |> add_entail (Syntax.parse_instants "{A}") (Syntax.parse_instants "{}");
+  assert (ctx |> exists_entail (Syntax.parse_instants "{A}") (Syntax.parse_instants "{}"));
+  ctx |> add_entail (Syntax.parse_instants "{B}") (Syntax.parse_instants "{A}");
+  ctx |> add_entail (Syntax.parse_instants "{A, B}") (Syntax.parse_instants "{B}");
+  assert (ctx |> exists_entail (Syntax.parse_instants "{B}") (Syntax.parse_instants "{}"));
+  assert (ctx |> exists_entail (Syntax.parse_instants "{A, B}") (Syntax.parse_instants "{}"));
+  assert (ctx |> exists_entail (Syntax.parse_instants "{A, B}") (Syntax.parse_instants "{A}"));
   ()
