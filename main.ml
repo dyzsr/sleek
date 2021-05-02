@@ -208,9 +208,18 @@ let tests =
     "t > 1: {A}* # t  |-  t > 3: {A}* # t :: false";
     "t < 1: {A}* # t  |-  t < 3: {A}*.{B}* # t :: true";
     "t < 3: {A}* # t  |-  t < 1: {A}* # t   :: false";
-    "t < 1: {A}* # t  |-  t1 < 3: {A}* # t1 :: true";
-    "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
-    "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
+    (* "t < 1: {A}* # t  |-  t1 < 3: {A}* # t1 :: true"; *)
+    (* "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true"; *)
+    (* "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true"; *)
+    (* Timed Await *)
+    "t < 1: A? # t  |-  t < 3: A? # t  :: true";
+    (* "t < 1: A? # t  |-  s < 3: A? # s  :: true"; *)
+    "t < 3: A? # t  |-  t < 1: A? # t  :: false";
+    "t > 3: A? # t  |-  t > 1: A? # t  :: true";
+    "t > 1: A? # t  |-  t > 3: A? # t  :: false";
+    "t < 1: (A? # t) // ({A} # t)  |-  t < 3: {A} # t  :: true";
+    "t < 1: (A? # t) // ({A} # t)  |-  s < 3: {A} # s  :: true";
+    "(t1 < 1 && t2 < 1): (A? # t1) // ({A} # t2)  |-  t < 3: {A} # t  :: true";
     (* Nested Timed *)
     "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
     "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : true";

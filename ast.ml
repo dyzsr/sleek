@@ -88,7 +88,7 @@ let rec show_instants_with_prec lprec rprec = function
       Printf.sprintf "%s + %s" (show_instants_with_prec 0 20 es1) (show_instants_with_prec 20 0 es2)
       |> if lprec > 20 || rprec >= 20 then enclose else nothing
   | Parallel (es1, es2) ->
-      Printf.sprintf "%s ‖ %s"
+      Printf.sprintf "%s ║ %s"
         (show_instants_with_prec 0 10 es1)
         (show_instants_with_prec 10 0 es2)
       |> if lprec > 10 || rprec >= 10 then enclose else nothing

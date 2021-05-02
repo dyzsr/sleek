@@ -159,11 +159,11 @@ let show hist ~verbose =
             List.fold_left
               (fun (j, acc2) sub ->
                 ( j + 1,
-                  let sub = show_entry sub ~verbose in
+                  let entry = show_entry sub ~verbose in
                   let label =
                     Printf.sprintf "%s%-10s ┃%s" Colors.bold (case_no i j) Colors.reset
                   in
-                  sub :: label :: acc2 ))
+                  entry :: label :: acc2 ))
               (1, []) l
           in
           List.rev subh :: acc ))

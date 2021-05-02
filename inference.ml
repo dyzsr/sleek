@@ -143,6 +143,18 @@ let partial_deriv ctx (i, t') es =
                 ctx |> Proofctx.add_precond (t =* t');
                 Empty
             | Instant _ -> Bottom
+            | Await e when Signals.(i |- make [ e ]) ->
+                ctx |> Proofctx.track_term t';
+                ctx |> Proofctx.add_precond (t =* t');
+                Empty
+            | Await e ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) in
+                ctx |> Proofctx.add_precond cond;
+                ctx |> Proofctx.track_term t';
+                ctx |> Proofctx.add_precond (t1 =* t');
+                Timed (Await e, t2)
             | Sequence (es1, es2) ->
                 let t1 = ctx |> Proofctx.new_term in
                 let t2 = ctx |> Proofctx.new_term in
@@ -172,7 +184,6 @@ let partial_deriv ctx (i, t') es =
                 aux (Sequence (Timed (es, t1), Timed (Kleene es, t2)))
             | Timed (_, inner_t) ->
                 ctx |> Proofctx.add_precond (t =* inner_t);
-                aux es
-            | _ -> failwith "not implemented"))
+                aux es))
   in
   aux es
