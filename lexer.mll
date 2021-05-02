@@ -7,9 +7,8 @@ let space = [' ' '\t' '\r']
 let digit = ['0'-'9']
 let lower = ['a'-'z']
 let upper = ['A'-'Z']
-let alpha  = lower | upper
-let alpha_ = alpha | '_'
-let alnum  = digit | alpha_
+let alpha = lower | upper
+let alnum = digit | alpha | '_'
 
 rule lex = parse
   | eol                     { Lexing.new_line lexbuf; lex lexbuf }
@@ -23,30 +22,28 @@ rule lex = parse
   | "-"                     { MINUS }
   | "="                     { EQ }
   | "<"                     { LT }
-  | "<="                    { LE }
+  | "<=" | "≤"              { LE }
   | ">"                     { GT }
-  | ">="                    { GE }
+  | ">=" | "≥"              { GE }
   | "true"                  { TRUTH }
   | "false"                 { FALSENESS }
-  | "/\\"                   { AND }
-  | "&&"                    { AND }
-  | "\\/"                   { OR }
-  | "||"                    { OR }
+  | "/\\" | "&&" | "⋀"      { AND }
+  | "\\/" | "||" | "⋁"      { OR }
+  | "=>" | "⇒"              { IMPLY }
   | "//"                    { PAR }
   | "#"                     { SHARP }
-  | "."                     { DOT }
+  | "." | "·"               { DOT }
   | ","                     { COMMA }
-  | "^*"                    { KLEENE }
-  | "|-"                    { ENTAIL }
+  | "^*" | "*"              { KLEENE }
+  | "|-" | "->" | "→"       { ENTAIL }
   | ":"                     { COLON }
   | "("                     { LPAREN }
   | ")"                     { RPAREN }
   | "{"                     { LBRACE }
   | "}"                     { RBRACE }
-  | "_|_"                   { BOTTOM }
-  | "bot"                   { BOTTOM }
-  | "emp"                   { EMPTY }
+  | "_|_" | "bot"           { BOTTOM }
+  | "emp" | "empty"         { EMPTY }
   | "?"                     { QUESTION }
   | digit+ as n             { INT (int_of_string n) }
-  | alpha_ alnum* as id     { IDENT id }
+  | alpha alnum* as id      { IDENT id }
   | _                       { UNKNOWN }

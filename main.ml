@@ -163,8 +163,8 @@ let tests =
     "t < 2 && {A} # t  |-  t < 1 && {A} # t : false";
     (* Timed Union *)
     "t < 1 && {A} # t  |-  t < 3 && {A}+{A} # t : true";
-    "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t: true";
-    "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t: false";
+    "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t : true";
+    "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t : false";
     "t < 1 && {A} # t  |-  (t1 < 3 && t2 < 3) && ({A} # t1) + ({A} # t2) : true";
     "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
     "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
@@ -213,15 +213,23 @@ let tests =
     "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
     "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
     "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+    (* irrelevant constraints *)
+    "t < 1 && {A}  |-  t < 3 && {A} : true";
+    "t < 1 && {A}  |-  (t1 < 3 && t2 < 3) && {A} + ({A}#t2) : true";
     (* Strange constraints *)
     "(d>3 && t<d) && {A} # t  |-  (d>3 && t<d) && {A} # t : true";
     (* multiple entailments *)
     "True && {A}  |-  True && {A} || True && {B} : true";
     "True && {A} || True && {B}  |-  True && {}  : true";
     "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
-    (* irrelevant constraints *)
-    "t < 1 && {A}  |-  t < 3 && {A} : true";
-    "t < 1 && {A}  |-  (t1 < 3 && t2 < 3) && {A} + ({A}#t2) : true";
+    (* complex entailments *)
+    {|
+        (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ 0≤t ⋀ t<d ⋀ tv1+tv2=t ⋀
+         0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ 0≤t ⋀ t<d ⋀ tv1+tv2=t ⋀
+         0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ 0≤t ⋀ t<d ⋀ tv1+tv2=t):
+         {Prep}·({Cook} # tv2)·{Ready}·{}  →
+        (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : true
+    |};
   ]
 
 

@@ -2,10 +2,10 @@
 %token EOF "eof"
 %token TRUE "True" FALSE "False"
 %token TRUTH "true" FALSENESS "false"
-%token AND "&&" OR "||" PAR "//" NOT "~" EXCLAM "!"
+%token PAR "//" NOT "~" EXCLAM "!"
 %token KLEENE "^*" ENTAIL "|-" IMPLY "=>"
 %token DOT "." COMMA "," COLON ":"
-%token PLUS "+" MINUS "-"
+%token PLUS "+" MINUS "-" AND "&&" OR "||"
 %token EQ "=" LT "<" LE "<=" GT ">" GE ">="
 %token LPAREN "(" RPAREN ")"
 %token LBRACE "{" RBRACE "}"
@@ -23,11 +23,11 @@
 %type <Ast.instants> only_instants
 %type <Ast.simple_entailment> simple_entailment
 
+%right "//"
+%nonassoc "#"
 %right "=>"
 %left "||"
 %left "&&"
-%right "//"
-%nonassoc "#"
 %left "+" "-"
 %right "."
 %nonassoc "^*"
@@ -35,7 +35,7 @@
 %%
 
 specification:
-    e=entailment ":" a=assertion "eof" { Ast.Spec (e, a) }
+    e=entailment ":" a=assertion "eof"  { Ast.Spec (e, a) }
 
 only_entailment:
     e=entailment "eof"  { e }
@@ -47,21 +47,22 @@ only_instants:
     es=instants "eof"   { es }
 
 simple_entailment:
-    lhs=simple_effects "|-" rhs=simple_effects "eof" { Ast.SimpleEntail {lhs; rhs} }
+    lhs=simple_effects "|-" rhs=simple_effects "eof"  { Ast.SimpleEntail {lhs; rhs} }
 
 assertion:
-    "true"  { true }
-  | "false" { false }
+    "true"              { true }
+  | "false"             { false }
 
 entailment:
-    lhs=effects "|-" rhs=effects  { Ast.Entail {lhs; rhs} }
+    lhs=effects "|-" rhs=effects      { Ast.Entail {lhs; rhs} }
 
 effects:
-    e=simple_effects                         { [e] }
-  | e=simple_effects "||" l=effects { e :: l }
+    e=simple_effects                  { [e] }
+  | e=simple_effects "||" l=effects   { e :: l }
 
 simple_effects:
     p=pi "&&" es=instants             { (p, es) }
+  | p=pi ":"  es=instants             { (p, es) }
 
 pi:
     "True"                            { Ast.True }
