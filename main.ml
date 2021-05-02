@@ -89,6 +89,8 @@ let tests =
     "True && {A}.{B}^*.{C}^*  |-  True && {A}^*.{B}^*.{C}^* : true";
     "True && {A}.{B}^*.{C}^*  |-  True && {A}^*.{B, C}^*    : false";
     "True && {A}.{B, C}^*  |-  True && {A}^*.{B}^*.{C}^*    : true";
+    "True && {A}^*.{B}  |-  True && {A}^*.{C}  : false";
+    "True && {A}^*.{B}  |-  True && {A}^*.{}   : true";
     (* Mixed *)
     "True && {A}.{B}^*.{C}^*    |-  True && {A}^*.({B} + {C})^*   : true";
     "True && {A}^*.{B}^*.{C}^*  |-  True && ({A} + {B} + {C})^*  : true";
@@ -201,6 +203,13 @@ let tests =
     "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  t > 3 && {A}.{B} # t // {C}.{D} # t : false";
     "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 < 3 && t2 < 3) && {A}.{B} # t1 // {C}.{D} # t2 : true";
     "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 > 3 && t2 > 3) && {A}.{B} # t1 // {C}.{D} # t2 : false";
+    (* Timed Kleene *)
+    "t < 1: {A}^* # t  |-  t < 3: {A}^* # t :: true";
+    "t > 1: {A}^* # t  |-  t > 3: {A}^* # t :: false";
+    "t < 1: {A}^* # t  |-  t < 3: {A}^*.{B}^* # t :: true";
+    "t < 3: {A}^* # t  |-  t < 1: {A}^* # t :: false";
+    "t < 1: {A}^* # t  |-  t1 < 3: {A}^* # t1 :: true";
+    "t < 1: {A}^* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
     (* Nested Timed *)
     "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
     "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : true";
@@ -222,12 +231,20 @@ let tests =
     "True && {A}  |-  True && {A} || True && {B} : true";
     "True && {A} || True && {B}  |-  True && {}  : true";
     "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
-    (* complex entailments *)
+    (* others *)
     {|
-        (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ 0≤t ⋀ t<d ⋀ tv1+tv2=t ⋀
-         0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ 0≤t ⋀ t<d ⋀ tv1+tv2=t ⋀
-         0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ 0≤t ⋀ t<d ⋀ tv1+tv2=t):
-         {Prep}·({Cook} # tv2)·{Ready}·{}  →
+        (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
+         {Prep}·({Cook} # tv2)·{Ready}·{}  |-
+        (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : false
+    |};
+    {|
+        (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
+         ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{}  |-
+        (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : false
+    |};
+    {|
+        (d=3 ⋀ 0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
+         ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{Go}  |-
         (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : true
     |};
   ]

@@ -58,7 +58,7 @@ let rec show_pi_with_prec lprec rprec = function
       show_pi_with_prec 0 20 p1 ^ " ⋁ " ^ show_pi_with_prec 20 0 p2
       |> if lprec >= 20 || rprec > 20 then enclose else nothing
   | Imply (p1, p2)      ->
-      show_pi_with_prec 0 10 p1 ^ " ⇒ " ^ show_pi_with_prec 10 0 p2
+      show_pi_with_prec 0 10 p1 ^ " → " ^ show_pi_with_prec 10 0 p2
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
   | Not p               -> "¬" ^ show_pi_with_prec 90 0 p
 
@@ -85,9 +85,7 @@ let rec show_instants_with_prec lprec rprec = function
       Printf.sprintf "%s·%s" (show_instants_with_prec 0 30 es1) (show_instants_with_prec 30 0 es2)
       |> if lprec > 30 || rprec >= 30 then enclose else nothing
   | Union (es1, es2)    ->
-      Printf.sprintf "%s + %s"
-        (show_instants_with_prec 0 20 es1)
-        (show_instants_with_prec 20 0 es2)
+      Printf.sprintf "%s + %s" (show_instants_with_prec 0 20 es1) (show_instants_with_prec 20 0 es2)
       |> if lprec > 20 || rprec >= 20 then enclose else nothing
   | Parallel (es1, es2) ->
       Printf.sprintf "%s ‖ %s"
@@ -124,7 +122,7 @@ type simple_entailment =
     }
 
 let show_simple_entailment (SimpleEntail { lhs; rhs }) =
-  Printf.sprintf "%s  →  %s" (show_simple_effects lhs) (show_simple_effects rhs)
+  Printf.sprintf "%s  ⤇  %s" (show_simple_effects lhs) (show_simple_effects rhs)
 
 
 type entailment =
@@ -134,7 +132,7 @@ type entailment =
     }
 
 let show_entailment (Entail { lhs; rhs }) =
-  Printf.sprintf "%s  →  %s" (show_effects lhs) (show_effects rhs)
+  Printf.sprintf "%s  ⤇  %s" (show_effects lhs) (show_effects rhs)
 
 
 type specification = Spec of entailment * bool

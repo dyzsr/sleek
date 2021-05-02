@@ -29,14 +29,15 @@ rule lex = parse
   | "false"                 { FALSENESS }
   | "/\\" | "&&" | "⋀"      { AND }
   | "\\/" | "||" | "⋁"      { OR }
-  | "=>" | "⇒"              { IMPLY }
+  | "->"  | "→"             { IMPLY }
   | "//"                    { PAR }
   | "#"                     { SHARP }
-  | "." | "·"               { DOT }
+  | "."  | "·"              { DOT }
+  | "^*" | "*" | "﹡"       { KLEENE }
+  | "|-" | "=>"             { ENTAIL }
   | ","                     { COMMA }
-  | "^*" | "*"              { KLEENE }
-  | "|-" | "->" | "→"       { ENTAIL }
   | ":"                     { COLON }
+  | "::"                    { COLON2 }
   | "("                     { LPAREN }
   | ")"                     { RPAREN }
   | "{"                     { LBRACE }

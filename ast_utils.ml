@@ -22,6 +22,13 @@ let ( =>* ) a b = Imply (a, b)
 
 let ( !* ) a = Not a
 
+let map2 ?(sn = fun x -> x) ?(ns = fun y -> y) ~ss = function
+  | None, None     -> None
+  | Some x, None   -> Some (sn x)
+  | None, Some y   -> Some (ns y)
+  | Some x, Some y -> Some (ss x y)
+
+
 let rec vars_of_term acc = function
   | Var v          -> v :: acc
   | Gen n          -> ("@" ^ string_of_int n) :: acc
@@ -44,13 +51,6 @@ let rec visit_pi f = function
   | Or (p1, p2)        -> visit_pi f p1; visit_pi f p2
   | Imply (p1, p2)     -> visit_pi f p1; visit_pi f p2
   | Not pi             -> visit_pi f pi
-
-
-let map2 ?(sn = fun x -> x) ?(ns = fun y -> y) ~ss = function
-  | None, None     -> None
-  | Some x, None   -> Some (sn x)
-  | None, Some y   -> Some (ns y)
-  | Some x, Some y -> Some (ss x y)
 
 
 let rec filter_pi f = function
@@ -169,7 +169,7 @@ let filter_by_occurence pi =
   | Some pi -> pi
 
 
-let trim_constraints pi terms =
+let trim_pi pi terms =
   let used_vars = ref [] in
   let () =
     List.iter

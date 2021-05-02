@@ -164,6 +164,12 @@ let partial_deriv ctx (i, t') es =
                 ctx |> Proofctx.add_precond cond;
                 Union (deriv1, deriv2)
             | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
+            | Kleene es ->
+                let t1 = ctx |> Proofctx.new_term in
+                let t2 = ctx |> Proofctx.new_term in
+                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) in
+                ctx |> Proofctx.add_precond cond;
+                aux (Sequence (Timed (es, t1), Timed (Kleene es, t2)))
             | Timed (_, inner_t) ->
                 ctx |> Proofctx.add_precond (t =* inner_t);
                 aux es

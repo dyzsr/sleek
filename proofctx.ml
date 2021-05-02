@@ -27,7 +27,46 @@ let add_entail lhs rhs ctx =
   ctx.entails <- entails
 
 
-let exists_entail lhs rhs ctx = List.exists (( = ) (lhs, rhs)) ctx.entails
+let exists_entail lhs rhs ctx =
+  let isomorphic (es1, es2) (es1', es2') =
+    let module Terms = Map.Make (struct
+      type t = term
+
+      let compare = Stdlib.compare
+    end) in
+    let forw = ref Terms.empty in
+    let back = ref Terms.empty in
+    let union t1 t2 =
+      match (!forw |> Terms.find_opt t1, !back |> Terms.find_opt t2) with
+      | None, None         ->
+          forw := !forw |> Terms.add t1 t2;
+          back := !back |> Terms.add t2 t1;
+          true
+      | Some t2', Some t1' -> t1 = t1' && t2 = t2'
+      | _                  -> false
+    in
+    let rec aux es1 es2 =
+      if es1 = es2 then
+        true
+      else
+        match (es1, es2) with
+        | Bottom, Bottom -> true
+        | Empty, Empty -> true
+        | Instant i, Instant j when i = j -> true
+        | Await i, Await j when i = j -> true
+        | Sequence (es1, es2), Sequence (es1', es2') -> aux es1 es1' && aux es2 es2'
+        | Union (es1, es2), Union (es1', es2') -> aux es1 es1' && aux es2 es2'
+        | Parallel (es1, es2), Parallel (es1', es2') -> aux es1 es1' && aux es2 es2'
+        | Kleene es, Kleene es' -> aux es es'
+        | Timed (es, t), Timed (es', t') ->
+            let iso = union t t' in
+            if iso then aux es es' else false
+        | _ -> false
+    in
+    aux es1 es1' && aux es2 es2'
+  in
+  List.exists (isomorphic (lhs, rhs)) ctx.entails
+
 
 let new_term ctx =
   let no = !(ctx.fresh_cnt) in
@@ -54,7 +93,7 @@ let check_constraints ctx =
     in
     aux ctx.precond
   in
-  let constrnt = Ast_utils.trim_constraints constrnt (ctx |> tracked_terms) in
+  let constrnt = Ast_utils.trim_pi constrnt (ctx |> tracked_terms) in
   let constrnt = Utils.fixpoint ~f:normalize_pi constrnt in
   (not (Checker.check (Not constrnt)), constrnt)
 

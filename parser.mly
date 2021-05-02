@@ -3,8 +3,8 @@
 %token TRUE "True" FALSE "False"
 %token TRUTH "true" FALSENESS "false"
 %token PAR "//" NOT "~" EXCLAM "!"
-%token KLEENE "^*" ENTAIL "|-" IMPLY "=>"
-%token DOT "." COMMA "," COLON ":"
+%token KLEENE "^*" ENTAIL "|-" IMPLY "->"
+%token DOT "." COMMA "," COLON ":" COLON2 "::"
 %token PLUS "+" MINUS "-" AND "&&" OR "||"
 %token EQ "=" LT "<" LE "<=" GT ">" GE ">="
 %token LPAREN "(" RPAREN ")"
@@ -25,7 +25,7 @@
 
 %right "//"
 %nonassoc "#"
-%right "=>"
+%right "->"
 %left "||"
 %left "&&"
 %left "+" "-"
@@ -36,6 +36,7 @@
 
 specification:
     e=entailment ":" a=assertion "eof"  { Ast.Spec (e, a) }
+  | e=entailment "::" a=assertion "eof" { Ast.Spec (e, a) }
 
 only_entailment:
     e=entailment "eof"  { e }
@@ -75,7 +76,7 @@ paren_pi:
   | pi=pi                             { pi }
   | pi1=paren_pi "&&" pi2=paren_pi    { Ast_utils.(pi1 &&* pi2) }
   | pi1=paren_pi "||" pi2=paren_pi    { Ast_utils.(pi1 ||* pi2) }
-  | pi1=paren_pi "=>" pi2=paren_pi    { Ast_utils.(pi1 =>* pi2) }
+  | pi1=paren_pi "->" pi2=paren_pi    { Ast_utils.(pi1 =>* pi2) }
 
 atomic:
     t1=term "=" t2=term               { Ast_utils.(t1 =* t2) }
