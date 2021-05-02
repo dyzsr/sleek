@@ -1,7 +1,6 @@
 type term =
   | Const of int
   | Var   of string
-  | Bar   of string
   | Gen   of int
   | Plus  of term * term
   | Minus of term * term

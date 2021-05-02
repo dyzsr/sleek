@@ -9,7 +9,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     let bot_lhs (_, es1) = es1 = Ast.Bottom
     and bot_rhs (_, es2) = es2 = Ast.Bottom
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
-    and reoccur ctx (_, es1) (_, es2) = es1 = es2 || Proofctx.exists_entail es1 es2 ctx
+    and reoccur ctx (_, es1) (_, es2) = Proofctx.exists_entail es1 es2 ctx
     and unfold ctx (pi1, es1) (pi2, es2) =
       ctx |> Proofctx.add_entail es1 es2;
       let firsts = Inference.first ctx es1 in
@@ -75,9 +75,6 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     (verdict, hist)
   in
   let ctx = Proofctx.make () in
-  (* let lhs = Ast_utils.trim_simple_effects lhs in
-     let rhs = Ast_utils.trim_simple_effects rhs in *)
-  let rhs = Ast_utils.disambiguate_simple_effects rhs in
   let () =
     let pre, _ = lhs in
     let post, _ = rhs in

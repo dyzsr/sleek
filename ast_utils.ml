@@ -24,7 +24,6 @@ let ( !* ) a = Not a
 
 let rec vars_of_term acc = function
   | Var v          -> v :: acc
-  | Bar v          -> v :: acc
   | Gen n          -> ("@" ^ string_of_int n) :: acc
   | Plus (t1, t2)  ->
       let acc = vars_of_term acc t1 in
@@ -182,51 +181,6 @@ let trim_constraints pi terms =
   let pi = filter_by_relevance pi !used_vars in
   let pi = filter_by_occurence pi in
   pi
-
-
-let trim_simple_effects (pi, es) =
-  let terms = ref [] in
-  let rec get_all_terms = function
-    | Bottom              -> ()
-    | Empty               -> ()
-    | Instant _           -> ()
-    | Await _             -> ()
-    | Sequence (es1, es2) -> get_all_terms es1; get_all_terms es2
-    | Union (es1, es2)    -> get_all_terms es1; get_all_terms es2
-    | Parallel (es1, es2) -> get_all_terms es1; get_all_terms es2
-    | Kleene es           -> get_all_terms es
-    | Timed (_, t)        -> terms := t :: !terms
-  in
-  get_all_terms es;
-  let pi = trim_constraints pi !terms in
-  (pi, es)
-
-
-let disambiguate_simple_effects (pi, es) =
-  let disambiguate_term = function
-    | Var v -> Bar (String.capitalize_ascii v)
-    | t     -> t
-  in
-  let rec disambiguate_pi pi =
-    match pi with
-    | True                -> True
-    | False               -> False
-    | Atomic (op, t1, t2) -> Atomic (op, disambiguate_term t1, disambiguate_term t2)
-    | And (p1, p2)        -> And (disambiguate_pi p1, disambiguate_pi p2)
-    | Or (p1, p2)         -> Or (disambiguate_pi p1, disambiguate_pi p2)
-    | Imply (p1, p2)      -> Imply (disambiguate_pi p1, disambiguate_pi p2)
-    | Not pi              -> Not (disambiguate_pi pi)
-  in
-  let rec disambiguate_es es =
-    match es with
-    | Bottom | Empty | Instant _ | Await _ -> es
-    | Sequence (es1, es2) -> Sequence (disambiguate_es es1, disambiguate_es es2)
-    | Union (es1, es2) -> Union (disambiguate_es es1, disambiguate_es es2)
-    | Parallel (es1, es2) -> Parallel (disambiguate_es es1, disambiguate_es es2)
-    | Kleene es -> Kleene (disambiguate_es es)
-    | Timed (es, t) -> Timed (disambiguate_es es, disambiguate_term t)
-  in
-  (disambiguate_pi pi, disambiguate_es es)
 
 
 let rec normalize_pi : pi -> pi = function

@@ -5,7 +5,6 @@ let nothing str = str
 type term =
   | Const of int
   | Var   of string
-  | Bar   of string
   | Gen   of int
   | Plus  of term * term
   | Minus of term * term
@@ -13,7 +12,6 @@ type term =
 let rec show_term_with_prec lprec rprec = function
   | Const i        -> string_of_int i
   | Var v          -> v
-  | Bar v          -> v
   | Gen n          -> "@" ^ string_of_int n
   | Plus (t1, t2)  ->
       show_term_with_prec 0 50 t1 ^ "+" ^ show_term_with_prec 50 0 t2
