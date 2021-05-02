@@ -33,8 +33,8 @@ rule lex = parse
   | "//"                    { PAR }
   | "#"                     { SHARP }
   | "."  | "·"              { DOT }
-  | "^*" | "*" | "﹡"       { KLEENE }
-  | "|-" | "=>"             { ENTAIL }
+  | "^*" | "*"  | "﹡"      { KLEENE }
+  | "|-" | "=>" | "⤇"      { ENTAIL }
   | ","                     { COMMA }
   | ":"                     { COLON }
   | "::"                    { COLON2 }

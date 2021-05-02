@@ -119,7 +119,9 @@ let verify_specification (Ast.Spec (entailment, assertion)) =
 
 
 let show_verification ~case ~no ~verdict ~verbose ~history =
+  let no = string_of_int no in
   Colors.reset
-  ^ Printf.sprintf "%sCase %-5d :%s  %s\n" Colors.bold no Colors.reset (Ast.show_specification case)
-  ^ Printf.sprintf "%sVerify     :%s\n%s\n" Colors.bold Colors.reset (History.show history ~verbose)
-  ^ Printf.sprintf "%sVerdict    :%s  %s\n" Colors.bold Colors.reset verdict
+  ^ Printf.sprintf "%s%-10s ┃%s  %s\n" Colors.bold ("Case " ^ no) Colors.reset
+      (Ast.show_specification case)
+  ^ Printf.sprintf "%s\n" (History.show history ~verbose)
+  ^ Printf.sprintf "%s%-10s ┃%s  %s\n" Colors.bold "Verdict" Colors.reset verdict

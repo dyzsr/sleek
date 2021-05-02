@@ -8,6 +8,10 @@ val underline : string
 
 val no_underline : string
 
+val overline : string
+
+val no_overline : string
+
 val italic : string
 
 val no_italic : string

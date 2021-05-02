@@ -17,6 +17,10 @@ let underline = color_string "\027[4m"
 
 let no_underline = color_string "\027[24m"
 
+let overline = color_string "\027[53m"
+
+let no_overline = color_string "\027[55m"
+
 let italic = color_string "\027[3m"
 
 let no_italic = color_string "\027[23m"
