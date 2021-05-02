@@ -7,8 +7,9 @@ let space = [' ' '\t' '\r']
 let digit = ['0'-'9']
 let lower = ['a'-'z']
 let upper = ['A'-'Z']
-let alpha = lower | upper
-let alnum = digit | alpha | '_'
+let alpha  = lower | upper
+let alpha_ = alpha | '_'
+let alnum  = digit | alpha_
 
 rule lex = parse
   | eol                     { Lexing.new_line lexbuf; lex lexbuf }
@@ -47,6 +48,5 @@ rule lex = parse
   | "emp"                   { EMPTY }
   | "?"                     { QUESTION }
   | digit+ as n             { INT (int_of_string n) }
-  | lower alnum* as v       { VAR v }
-  | upper alnum* as e       { EVENT e }
+  | alpha_ alnum* as id     { IDENT id }
   | _                       { UNKNOWN }

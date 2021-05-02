@@ -95,12 +95,11 @@ let first ctx es =
     | Kleene es -> aux es
     | Timed (es, _) ->
         aux es
-        |> Set.map (fun (i, inner_t) ->
-               match inner_t with
-               | None         ->
-                   let t' = ctx |> Proofctx.new_term in
-                   (i, Some t')
-               | Some inner_t -> (i, Some inner_t))
+        |> Set.map (function
+             | i, None         ->
+                 let t' = ctx |> Proofctx.new_term in
+                 (i, Some t')
+             | i, Some inner_t -> (i, Some inner_t))
   in
   aux es
 

@@ -161,8 +161,47 @@ let tests =
     "t < 1 && {A} # t  |-  t < 2 && {A} # t : true";
     "t < 2 && {A} # t  |-  t < 2 && {A} # t : true";
     "t < 2 && {A} # t  |-  t < 1 && {A} # t : false";
+    (* Timed Union *)
     "t < 1 && {A} # t  |-  t < 3 && {A}+{A} # t : true";
+    "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t: true";
+    "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t: false";
     "t < 1 && {A} # t  |-  (t1 < 3 && t2 < 3) && ({A} # t1) + ({A} # t2) : true";
+    "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
+    "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
+    "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
+    "t < 1 && {A}+{B} # t  |-  (t1 < 2 && t2 < 2) && ({A} # t1) + ({B} # t2) : true";
+    (* Timed Empty *)
+    "t < 1 && {A} # t  |-  t < 3 && (emp+{A}) # t : true";
+    "t < 1 && emp # t  |-  t < 3 && emp # t : true";
+    "t < 1 && emp # t  |-  t < 3 && (emp+{A}) # t : true";
+    "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true";
+    "t < 3 && {A} # t  |-  t < 1 && (emp+{A}) # t : false";
+    "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false";
+    "t < 1 && (emp+{A}) # t  |-  t < 3 && (emp+{A}) # t : true";
+    (* Timed Sequence *)
+    "t > 1 && {A}.{B} # t  |-  t > 3 && {A}.{B} # t: false";
+    "t < 1 && {A}.{B} # t  |-  t < 3 && {A}.{B} # t: true";
+    "t < 1 && emp.{B} # t  |-  t < 3 && emp.{B} # t: true";
+    "(t1 < 1 && t2 < 1) && ({A} # t1).({B} # t2)  |-  t < 3 && {A}.{B} # t: true";
+    "(t1 > 1 && t2 > 1) && ({A} # t1).({B} # t2)  |-  t > 3 && {A}.{B} # t: false";
+    (* Timed Empty & Sequnce & Union *)
+    "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
+    "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
+    "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
+    "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
+    "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
+    (* Timed Parallel *)
+    "t < 1 && ({A} // {B}) # t  |-  t < 3 && {A} # t // {B} # t : true";
+    "t < 1 && {A} # t // {B} # t  |-  t < 3 && ({A} // {B}) # t : true";
+    "t < 1 && {A, B} # t  |-  t < 3 && ({A} // {B}) # t : true";
+    "t < 3 && ({A} // {B}) # t  |-  t < 1 && {A} # t // {B} # t : false";
+    "t > 3 && ({A} // {B}) # t  |-  t > 1 && {A} # t // {B} # t : true";
+    "t > 1 && ({A} // {B}) # t  |-  t > 3 && {A} # t // {B} # t : false";
+    "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  t < 3 && {A}.{B} # t // {C}.{D} # t : true";
+    "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  t > 3 && {A}.{B} # t // {C}.{D} # t : false";
+    "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 < 3 && t2 < 3) && {A}.{B} # t1 // {C}.{D} # t2 : true";
+    "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 > 3 && t2 > 3) && {A}.{B} # t1 // {C}.{D} # t2 : false";
+    (* Nested Timed *)
     "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
     "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : true";
     "(t1 < 2 && t2 < 3) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
@@ -174,29 +213,6 @@ let tests =
     "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
     "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
     "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
-    "t > 1 && {A}.{B} # t  |-  t > 3 && {A}.{B} # t: false";
-    "t < 1 && {A}.{B} # t  |-  t < 3 && {A}.{B} # t: true";
-    "t < 1 && emp.{B} # t  |-  t < 3 && emp.{B} # t: true";
-    "(t1 < 1 && t2 < 1) && ({A} # t1).({B} # t2)  |-  t < 3 && {A}.{B} # t: true";
-    "(t1 > 1 && t2 > 1) && ({A} # t1).({B} # t2)  |-  t > 3 && {A}.{B} # t: false";
-    "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t: true";
-    "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t: false";
-    "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
-    "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
-    "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
-    "t < 1 && {A}+{B} # t  |-  (t1 < 2 && t2 < 2) && ({A} # t1) + ({B} # t2) : true";
-    "t < 1 && {A} # t  |-  t < 3 && (emp+{A}) # t : true";
-    "t < 1 && emp # t  |-  t < 3 && emp # t : true";
-    "t < 1 && emp # t  |-  t < 3 && (emp+{A}) # t : true";
-    "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true";
-    "t < 3 && {A} # t  |-  t < 1 && (emp+{A}) # t : false";
-    "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false";
-    "t < 1 && (emp+{A}) # t  |-  t < 3 && (emp+{A}) # t : true";
-    "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
-    "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
-    "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
-    "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
-    "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
     (* Strange constraints *)
     "(d>3 && t<d) && {A} # t  |-  (d>3 && t<d) && {A} # t : true";
     (* multiple entailments *)

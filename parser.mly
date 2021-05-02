@@ -11,8 +11,7 @@
 %token LBRACE "{" RBRACE "}"
 %token BOTTOM "_|_" EMPTY "empty"
 %token QUESTION "?" SHARP "#"
-%token <string> VAR "var"
-%token <string> EVENT "event"
+%token <string> IDENT "ident"
 %token <int> INT "int"
 
 %start specification only_entailment
@@ -86,7 +85,7 @@ atomic:
 
 term:
     i="int"                           { Ast.Const i }
-  | v="var"                           { Ast.Var v }
+  | v="ident"                         { Ast.Var v }
   | t1=term "+" t2=term               { Ast_utils.(t1 +* t2) }
   | t1=term "-" t2=term               { Ast_utils.(t1 -* t2) }
 
@@ -107,13 +106,13 @@ instant:
   | "{" l=event_list "}"              { Signals.make l  }
 
 event_list:
-  | e="event"                         { [ Signals.present e ] }
-  | "!" e="event"                     { [ Signals.absent e ] }
-  | e="event" "," l=event_list        { Signals.present e :: l }
-  | "!" e="event" "," l=event_list    { Signals.absent e :: l }
+  | e="ident"                         { [ Signals.present e ] }
+  | "!" e="ident"                     { [ Signals.absent e ] }
+  | e="ident" "," l=event_list        { Signals.present e :: l }
+  | "!" e="ident" "," l=event_list    { Signals.absent e :: l }
 
 
 waiting:
-    e="event" "?"                     { Signals.present e }
+    e="ident" "?"                     { Signals.present e }
 
 %%
