@@ -26,9 +26,11 @@ val from : string -> t
 
 val initUndef : string list -> t
 
-val setAbsent: string -> event list -> t option 
+val setAbsent: string -> t -> t option 
 
-val setPresent: string -> event list -> t option 
+val setPresent: string -> t -> t option 
+
+val controdicts: t -> bool 
 
 val add_UndefSigs: string list -> t -> t 
 

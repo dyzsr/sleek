@@ -18,6 +18,15 @@ let rec isEventExist ev ins : bool =
   | []      -> false
   | x :: xs -> if compare_event x ev then true else isEventExist ev xs
 
+(* To test if the event list contains controdicts {S, !S} *)
+let rec controdicts ins = 
+  match ins with 
+  | [] -> false 
+  | Present s :: xs -> if isEventExist (Absent s) xs then true else controdicts xs
+  | Absent s :: xs -> if isEventExist (Present s) xs then true else controdicts xs
+  | Undef _ :: xs -> controdicts xs
+  ;;
+
 
 let present name = Present name
 
