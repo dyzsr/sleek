@@ -22,9 +22,6 @@ val ( =>* ) : pi -> pi -> pi
 
 val ( !* ) : pi -> pi
 
-val map2 :
-  ?sn:('a -> 'a) -> ?ns:('a -> 'a) -> ss:('a -> 'a -> 'a) -> 'a option * 'a option -> 'a option
-
 val visit_pi : (term -> term -> unit) -> pi -> unit
 
 val filter_pi : (term -> term -> bool) -> pi -> pi option

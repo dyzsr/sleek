@@ -42,8 +42,8 @@ rule lex = parse
   | ")"                     { RPAREN }
   | "{"                     { LBRACE }
   | "}"                     { RBRACE }
-  | "_|_" | "bot"           { BOTTOM }
-  | "emp" | "empty"         { EMPTY }
+  | "bot" | "_|_" | "⏊"    { BOTTOM }
+  | "emp" | "𝝐"             { EMPTY }
   | "?"                     { QUESTION }
   | digit+ as n             { INT (int_of_string n) }
   | alpha alnum* as id      { IDENT id }

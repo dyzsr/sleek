@@ -22,13 +22,6 @@ let ( =>* ) a b = Imply (a, b)
 
 let ( !* ) a = Not a
 
-let map2 ?(sn = fun x -> x) ?(ns = fun y -> y) ~ss = function
-  | None, None     -> None
-  | Some x, None   -> Some (sn x)
-  | None, Some y   -> Some (ns y)
-  | Some x, Some y -> Some (ss x y)
-
-
 let rec vars_of_term acc = function
   | Var v          -> v :: acc
   | Gen n          -> ("@" ^ string_of_int n) :: acc
@@ -57,9 +50,9 @@ let rec filter_pi f = function
   | True                     -> Some True
   | False                    -> Some False
   | Atomic (_, t1, t2) as pi -> if f t1 t2 then Some pi else None
-  | And (p1, p2)             -> map2 ~ss:( &&* ) (filter_pi f p1, filter_pi f p2)
-  | Or (p1, p2)              -> map2 ~ss:( ||* ) (filter_pi f p1, filter_pi f p2)
-  | Imply (p1, p2)           -> map2 ~ss:( =>* ) ~sn:( !* ) (filter_pi f p1, filter_pi f p2)
+  | And (p1, p2)             -> Utils.opt_map2 ~ss:( &&* ) (filter_pi f p1, filter_pi f p2)
+  | Or (p1, p2)              -> Utils.opt_map2 ~ss:( ||* ) (filter_pi f p1, filter_pi f p2)
+  | Imply (p1, p2)           -> Utils.opt_map2 ~ss:( =>* ) ~sn:( !* ) (filter_pi f p1, filter_pi f p2)
   | Not pi                   -> (
       match filter_pi f pi with
       | None   -> None
