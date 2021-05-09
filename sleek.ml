@@ -1,10 +1,10 @@
 include Ast
-include Ast_utils
+include Ast_helper
 include Syntax
 include Verifier
 include Utils
 module Ast = Ast
-module Ast_utils = Ast_utils
+module Ast_helper = Ast_helper
 module Checker = Checker
 module Colors = Colors
 module History = History

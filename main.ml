@@ -157,6 +157,7 @@ let tests =
     "True && A?.B?.{D} // {A}.{B}.{C}   |-  True && {A}.{B}.{C, D} : true";
     "True && {A}.{B}.{C}.B?.{D}  |-  True && {A}.{B}.(B? // {C}).{D} : true";
     "True && ({A} + {B}) // {C}  |-  True && ({A} // {C}) + ({B} // {C}) : true";
+    "True && A? // B?  |-  True && A?.B? + {}*.{A, B} +  B?.A? : true";
     (* Timed effects *)
     "t > 1 && {A} # t  |-  t > 3 && {A} # t : false";
     "t > 1 && {A} # t  |-  True && {A} : true";
@@ -205,15 +206,27 @@ let tests =
     "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 > 3 && t2 > 3) && {A}.{B} # t1 // {C}.{D} # t2 : false";
     (* Timed Kleene *)
     "t < 1: {A}* # t  |-  t < 3: {A}* # t :: true";
+    "t < 1: {A}* # t  |-  t < 3: {A}*     :: true";
+    "t < 1: {A}*      |-  t < 3: {A}* # t :: false";
     "t > 1: {A}* # t  |-  t > 3: {A}* # t :: false";
     "t < 1: {A}* # t  |-  t < 3: {A}*.{B}* # t :: true";
+    "t < 1: {A}*.{B}*.{C} # t  |-  t < 3: {A}*.{B}*.{C}* # t :: true";
+    "t < 1: {A}*.{B}*.{C} # t  |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+    "t < 1: {A}.{B}*.{C} # t   |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+    "t < 1: {A}*.{B}.{C} # t   |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+    "t < 1: {A}.{B}.{C} # t    |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+    "t < 1: {A}.{B}.{C}* # t   |-  t < 3: {A}*.{B}*.{C} # t  :: false";
     "t < 3: {A}* # t  |-  t < 1: {A}* # t   :: false";
-    (* "t < 1: {A}* # t  |-  t1 < 3: {A}* # t1 :: true"; *)
-    (* "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true"; *)
-    (* "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true"; *)
+    "t > 3: {A}* # t  |-  t > 1: {A}* # t   :: true";
+    "t > 3: {A}* # t  |-  t > 1: {A}*       :: true";
+    "t > 1: {A}* # t  |-  t > 3: {A}* # t   :: false";
+    "t > 1: {A}* # t  |-  t1 > 3: {A}*      :: true";
+    "t < 1: {A}* # t  |-  t1 < 3: {A}* # t1 :: true";
+    "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
+    "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
     (* Timed Await *)
     "t < 1: A? # t  |-  t < 3: A? # t  :: true";
-    (* "t < 1: A? # t  |-  s < 3: A? # s  :: true"; *)
+    "t < 1: A? # t  |-  s < 3: A? # s  :: true";
     "t < 3: A? # t  |-  t < 1: A? # t  :: false";
     "t > 3: A? # t  |-  t > 1: A? # t  :: true";
     "t > 1: A? # t  |-  t > 3: A? # t  :: false";
@@ -257,6 +270,7 @@ let tests =
          ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{Go}  |-
         (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : true
     |};
+    "t < 3: {Doing}* # t.{Done}  |-  u < 4: ({Doing} + {Other})* # u . {Done} : true";
   ]
 
 

@@ -13,7 +13,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     and unfold ctx (pi1, es1) (pi2, es2) =
       ctx |> Proofctx.add_entail es1 es2;
       let firsts = Inference.first ctx es1 in
-      let empty = Inference.Set.is_empty firsts in
+      let terminate = Inference.Set.is_empty firsts in
       let verdict =
         firsts
         |> Inference.Set.for_all (fun x ->
@@ -24,51 +24,59 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
                hist |> History.add_unfolding sub_hist;
                verdict)
       in
-      (verdict, empty)
+      (verdict, terminate)
     and normal lhs rhs =
       let lhs =
-        Utils.fixpoint ~f:Ast_utils.normalize
+        Utils.fixpoint ~f:Ast_helper.normalize
           ~fn_iter:(fun es ->
             hist |> History.add_iteration ("NORM-LHS", SimpleEntail { lhs = es; rhs }))
           lhs
       in
       let rhs =
-        Utils.fixpoint ~f:Ast_utils.normalize
+        Utils.fixpoint ~f:Ast_helper.normalize
           ~fn_iter:(fun es ->
             hist |> History.add_iteration ("NORM-RHS", SimpleEntail { lhs; rhs = es }))
           rhs
       in
       (lhs, rhs)
     in
-    let check () =
-      let verdict, constrnt = ctx |> Proofctx.check_constraints in
-      hist |> History.set_terms (ctx |> Proofctx.tracked_terms);
-      hist |> History.set_constraints constrnt;
-      hist |> History.set_verdict verdict;
-      verdict
+    let check = function
+      | false ->
+          hist |> History.set_verdict false;
+          false
+      | true  ->
+          let verdict, constrnt = ctx |> Proofctx.check_constraints in
+          hist |> History.set_terms (ctx |> Proofctx.tracked_terms);
+          hist |> History.set_constraints constrnt;
+          hist |> History.set_verdict verdict;
+          verdict
     in
     (* Verify *)
     let lhs, rhs = normal lhs rhs in
     let verdict =
       if bot_lhs lhs then (
         hist |> History.add_iteration ("Bot-LHS", SimpleEntail { lhs; rhs });
-        check ())
+        check true)
       else if bot_rhs rhs then (
         hist |> History.add_iteration ("Bot-RHS", SimpleEntail { lhs; rhs });
-        hist |> History.set_verdict false;
-        false)
+        check false)
       else if disprove lhs rhs then (
         hist |> History.add_iteration ("DISPROVE", SimpleEntail { lhs; rhs });
-        hist |> History.set_verdict false;
-        false)
+        check false)
       else if reoccur ctx lhs rhs then (
         hist |> History.add_iteration ("REOCCUR", SimpleEntail { lhs; rhs });
-        check ())
+        let _, es1 = lhs in
+        let _, es2 = rhs in
+        let gen = ctx |> Proofctx.current_term_gen in
+        let t1, cond1 = Ast_helper.total_terms_of_es es1 gen in
+        let t2, cond2 = Ast_helper.total_terms_of_es es2 gen in
+        ctx |> Proofctx.add_precond Ast_helper.(t1 =* t2 &&* cond1 &&* cond2);
+        check true)
       else (
         hist |> History.add_iteration ("UNFOLD", SimpleEntail { lhs; rhs });
-        let verdict, empty = unfold ctx lhs rhs in
-        if verdict && empty then
-          check ()
+        let verdict, terminate = unfold ctx lhs rhs in
+        if verdict && terminate then
+          check true
         else
           verdict)
     in
@@ -121,7 +129,7 @@ let verify_specification (Ast.Spec (entailment, assertion)) =
 let show_verification ~case ~no ~verdict ~verbose ~history =
   let no = string_of_int no in
   Colors.reset
-  ^ Printf.sprintf "%s%-10s ┃%s  %s\n" Colors.bold ("Case " ^ no) Colors.reset
+  ^ Printf.sprintf "%s%-10s %s┃  %s\n" Colors.bold ("Case " ^ no) Colors.reset
       (Ast.show_specification case)
   ^ Printf.sprintf "%s\n" (History.show history ~verbose)
-  ^ Printf.sprintf "%s%-10s ┃%s  %s\n" Colors.bold "Verdict" Colors.reset verdict
+  ^ Printf.sprintf "%s%-10s %s┃  %s\n" Colors.bold "Verdict" Colors.reset verdict

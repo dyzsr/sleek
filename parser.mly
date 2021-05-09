@@ -74,22 +74,22 @@ pi:
 
 paren_pi:
   | pi=pi                             { pi }
-  | pi1=paren_pi "&&" pi2=paren_pi    { Ast_utils.(pi1 &&* pi2) }
-  | pi1=paren_pi "||" pi2=paren_pi    { Ast_utils.(pi1 ||* pi2) }
-  | pi1=paren_pi "->" pi2=paren_pi    { Ast_utils.(pi1 =>* pi2) }
+  | pi1=paren_pi "&&" pi2=paren_pi    { Ast_helper.(pi1 &&* pi2) }
+  | pi1=paren_pi "||" pi2=paren_pi    { Ast_helper.(pi1 ||* pi2) }
+  | pi1=paren_pi "->" pi2=paren_pi    { Ast_helper.(pi1 =>* pi2) }
 
 atomic:
-    t1=term "=" t2=term               { Ast_utils.(t1 =* t2) }
-  | t1=term "<" t2=term               { Ast_utils.(t1 <* t2) }
-  | t1=term "<=" t2=term              { Ast_utils.(t1 <=* t2) }
-  | t1=term ">" t2=term               { Ast_utils.(t1 >* t2) }
-  | t1=term ">=" t2=term              { Ast_utils.(t1 >=* t2) }
+    t1=term "=" t2=term               { Ast_helper.(t1 =* t2) }
+  | t1=term "<" t2=term               { Ast_helper.(t1 <* t2) }
+  | t1=term "<=" t2=term              { Ast_helper.(t1 <=* t2) }
+  | t1=term ">" t2=term               { Ast_helper.(t1 >* t2) }
+  | t1=term ">=" t2=term              { Ast_helper.(t1 >=* t2) }
 
 term:
     i="int"                           { Ast.Const i }
   | v="ident"                         { Ast.Var v }
-  | t1=term "+" t2=term               { Ast_utils.(t1 +* t2) }
-  | t1=term "-" t2=term               { Ast_utils.(t1 -* t2) }
+  | t1=term "+" t2=term               { Ast_helper.(t1 +* t2) }
+  | t1=term "-" t2=term               { Ast_helper.(t1 -* t2) }
 
 instants:
     "_|_"                             { Ast.Bottom }

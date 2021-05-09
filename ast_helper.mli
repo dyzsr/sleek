@@ -22,6 +22,12 @@ val ( =>* ) : pi -> pi -> pi
 
 val ( !* ) : pi -> pi
 
+type term_gen = int ref
+
+val next_term : term_gen -> term
+
+val total_terms_of_es : instants -> term_gen -> term * pi
+
 val visit_pi : (term -> term -> unit) -> pi -> unit
 
 val filter_pi : (term -> term -> bool) -> pi -> pi option

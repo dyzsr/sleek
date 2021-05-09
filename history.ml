@@ -161,7 +161,7 @@ let show hist ~verbose =
                 ( j + 1,
                   let entry = show_entry sub ~verbose in
                   let label =
-                    Printf.sprintf "%s%-10s ┃%s" Colors.bold (case_no i j) Colors.reset
+                    Printf.sprintf "%s%-10s %s┃" Colors.bold (case_no i j) Colors.reset
                   in
                   entry :: label :: acc2 ))
               (1, []) l

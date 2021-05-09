@@ -4,11 +4,13 @@ val make : unit -> t
 
 val clone : t -> t
 
+val current_term_gen : t -> Ast_helper.term_gen
+
+val next_term : t -> Ast.term
+
 val add_entail : Ast.instants -> Ast.instants -> t -> unit
 
 val exists_entail : Ast.instants -> Ast.instants -> t -> bool
-
-val new_term : t -> Ast.term
 
 val add_precond : Ast.pi -> t -> unit
 

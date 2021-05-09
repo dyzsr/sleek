@@ -22,6 +22,41 @@ let ( =>* ) a b = Imply (a, b)
 
 let ( !* ) a = Not a
 
+type term_gen = int ref
+
+let next_term gen =
+  let no = !gen in
+  gen := !gen + 1;
+  Ast.Gen no
+
+
+let total_terms_of_es es gen =
+  let rec aux = function
+    | Bottom              -> (Const 0, True)
+    | Empty               -> (Const 0, True)
+    | Instant _           -> (Const 0, True)
+    | Await _             -> (Const 0, True)
+    | Sequence (es1, es2) ->
+        let t1, cond1 = aux es1 in
+        let t2, cond2 = aux es2 in
+        (t1 +* t2, cond1 &&* cond2)
+    | Union (es1, es2)    ->
+        let t1, cond1 = aux es1 in
+        let t2, cond2 = aux es2 in
+        let t = gen |> next_term in
+        (t, cond1 &&* cond2 &&* (t =* t1 ||* (t =* t2)))
+    | Parallel (es1, es2) ->
+        let t1, cond1 = aux es1 in
+        let t2, cond2 = aux es2 in
+        let t = gen |> next_term in
+        (t, cond1 &&* cond2 &&* (t =* t1 &&* (t =* t2)))
+    | Kleene _            -> (Const 0, True)
+    | Timed (_, t)        -> (t, True)
+  in
+  let total, extra_conds = aux es in
+  (total, extra_conds)
+
+
 let rec vars_of_term acc = function
   | Var v          -> v :: acc
   | Gen n          -> ("@" ^ string_of_int n) :: acc
@@ -52,7 +87,8 @@ let rec filter_pi f = function
   | Atomic (_, t1, t2) as pi -> if f t1 t2 then Some pi else None
   | And (p1, p2)             -> Utils.opt_map2 ~ss:( &&* ) (filter_pi f p1, filter_pi f p2)
   | Or (p1, p2)              -> Utils.opt_map2 ~ss:( ||* ) (filter_pi f p1, filter_pi f p2)
-  | Imply (p1, p2)           -> Utils.opt_map2 ~ss:( =>* ) ~sn:( !* ) (filter_pi f p1, filter_pi f p2)
+  | Imply (p1, p2)           -> Utils.opt_map2 ~ss:( =>* ) ~sn:( !* )
+                                  (filter_pi f p1, filter_pi f p2)
   | Not pi                   -> (
       match filter_pi f pi with
       | None   -> None
@@ -108,60 +144,6 @@ let filter_by_relevance pi used_vars =
   | Some pi -> pi
 
 
-let filter_by_occurence pi =
-  let get_vars t1 t2 =
-    let vars = vars_of_term [] t1 in
-    let vars = vars_of_term vars t2 in
-    let vars = List.sort_uniq Stdlib.compare vars in
-    vars
-  in
-  let module Cnt = Map.Make (String) in
-  let cnt = ref Cnt.empty in
-  let get_cnt x =
-    match !cnt |> Cnt.find_opt x with
-    | None   -> 0
-    | Some v -> v
-  in
-  let inc_cnt x =
-    cnt :=
-      !cnt
-      |> Cnt.update x (function
-           | None   -> Some 1
-           | Some v -> Some (v + 1))
-  in
-  let dec_cnt x =
-    cnt :=
-      !cnt
-      |> Cnt.update x (function
-           | None -> failwith "invalid dec_cnt"
-           | Some v when v <= 0 -> failwith "invalid dec_cnt"
-           | Some v -> Some (v - 1))
-  in
-  let inc t1 t2 =
-    let vars = get_vars t1 t2 in
-    List.iter (fun x -> inc_cnt x) vars
-  in
-  visit_pi inc pi;
-  let changing = ref true in
-  while !changing do
-    changing := false;
-    let dec t1 t2 =
-      let vars = get_vars t1 t2 in
-      if List.exists (fun x -> get_cnt x == 1) vars then (
-        changing := true;
-        List.iter (fun x -> dec_cnt x) vars)
-    in
-    visit_pi dec pi
-  done;
-  let f t1 t2 =
-    let vars = get_vars t1 t2 in
-    List.for_all (fun x -> get_cnt x > 0) vars
-  in
-  match filter_pi f pi with
-  | None    -> True
-  | Some pi -> pi
-
-
 let trim_pi pi terms =
   let used_vars = ref [] in
   let () =
@@ -172,7 +154,6 @@ let trim_pi pi terms =
       terms
   in
   let pi = filter_by_relevance pi !used_vars in
-  let pi = filter_by_occurence pi in
   pi
 
 

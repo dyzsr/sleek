@@ -1,5 +1,5 @@
 open Ast
-open Ast_utils
+open Ast_helper
 
 module Set = struct
   include List
@@ -30,7 +30,7 @@ module Set = struct
                     match (t1, t2) with
                     | None, None -> (es', None)
                     | _          ->
-                        let t' = ctx |> Proofctx.new_term in
+                        let t' = ctx |> Proofctx.next_term in
                         (es', Some t'))))
          empty
     |> List.sort_uniq Stdlib.compare
@@ -97,7 +97,7 @@ let first ctx es =
         aux es
         |> Set.map (function
              | i, None         ->
-                 let t' = ctx |> Proofctx.new_term in
+                 let t' = ctx |> Proofctx.next_term in
                  (i, Some t')
              | i, Some inner_t -> (i, Some inner_t))
   in
@@ -128,9 +128,7 @@ let partial_deriv ctx (i, t') es =
         let deriv1 = aux es1 in
         let deriv2 = aux es2 in
         Parallel (deriv1, deriv2)
-    | Kleene es ->
-        let deriv = aux es in
-        Sequence (deriv, Kleene es)
+    | Kleene es -> aux (Sequence (es, Kleene es))
     | Timed (es, t) -> (
         match t' with
         | None    -> Bottom
@@ -148,22 +146,22 @@ let partial_deriv ctx (i, t') es =
                 ctx |> Proofctx.add_precond (t =* t');
                 Empty
             | Await e ->
-                let t1 = ctx |> Proofctx.new_term in
-                let t2 = ctx |> Proofctx.new_term in
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
                 let cond = t =* t1 +* t2 &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) in
                 ctx |> Proofctx.add_precond cond;
                 ctx |> Proofctx.track_term t';
                 ctx |> Proofctx.add_precond (t1 =* t');
                 Timed (Await e, t2)
             | Sequence (es1, es2) ->
-                let t1 = ctx |> Proofctx.new_term in
-                let t2 = ctx |> Proofctx.new_term in
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
                 let cond = t =* t1 +* t2 &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) in
                 ctx |> Proofctx.add_precond cond;
                 aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
             | Union (es1, es2) ->
-                let t1 = ctx |> Proofctx.new_term in
-                let t2 = ctx |> Proofctx.new_term in
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
                 let deriv1 = aux (Timed (es1, t1)) in
                 let deriv2 = aux (Timed (es2, t2)) in
                 let cond =
@@ -177,8 +175,8 @@ let partial_deriv ctx (i, t') es =
                 Union (deriv1, deriv2)
             | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
             | Kleene es ->
-                let t1 = ctx |> Proofctx.new_term in
-                let t2 = ctx |> Proofctx.new_term in
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
                 let cond = t =* t1 +* t2 &&* (t1 >=* Const 0) &&* (t2 >=* Const 0) in
                 ctx |> Proofctx.add_precond cond;
                 aux (Sequence (Timed (es, t1), Timed (Kleene es, t2)))
