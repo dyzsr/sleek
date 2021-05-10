@@ -215,6 +215,7 @@ let rec normalize_es : instants -> instants = function
   | Parallel (Bottom, _) -> Bottom
   | Parallel (es, es') when es = es' -> es
   | Union (Union (es1, es2), es3) -> Union (es1, Union (es2, es3))
+  | Kleene (Kleene esin) -> normalize_es (Kleene esin)
   | Kleene Bottom -> Empty
   | Kleene Empty -> Empty
   | Kleene (Union (Empty, es)) -> Kleene es
