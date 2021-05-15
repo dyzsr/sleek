@@ -230,6 +230,7 @@ let tests =
     "t < 3: A? # t  |-  t < 1: A? # t  :: false";
     "t > 3: A? # t  |-  t > 1: A? # t  :: true";
     "t > 1: A? # t  |-  t > 3: A? # t  :: false";
+    "t < 1: {B}.A? # t  |-  t < 3: A? # t  :: true";
     "t < 1: (A? # t) // ({A} # t)  |-  t < 3: {A} # t  :: true";
     "t < 1: (A? # t) // ({A} # t)  |-  s < 3: {A} # s  :: true";
     "(t1 < 1 && t2 < 1): (A? # t1) // ({A} # t2)  |-  t < 3: {A} # t  :: true";
@@ -271,6 +272,8 @@ let tests =
         (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : true
     |};
     "t < 3: {Doing}* # t.{Done}  |-  u < 4: ({Doing} + {Other})* # u . {Done} : true";
+    "t < 3: {A}* # t.{B} || True: {B}  |-  u < 4: {A}* # u.{B}  :: true";
+    "True: {A}.{C}.B?.{D}  |-  True: {A}.B?.{D}  :: true";
   ]
 
 
