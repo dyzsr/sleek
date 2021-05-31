@@ -20,9 +20,10 @@ let next_term ctx = next_term ctx.term_gen
 let add_entail lhs rhs ctx =
   let entails =
     (lhs, rhs)
-    :: (ctx.entails
-       |> List.filter (fun (lhs', _) -> rhs = lhs')
-       |> List.map (fun (_, rhs') -> (lhs, rhs')))
+    ::
+    (ctx.entails
+    |> List.filter (fun (lhs', _) -> rhs = lhs')
+    |> List.map (fun (_, rhs') -> (lhs, rhs')))
     @ (ctx.entails
       |> List.filter (fun (_, rhs') -> lhs = rhs')
       |> List.map (fun (lhs', _) -> (lhs', rhs)))
@@ -99,11 +100,11 @@ let check_constraints ctx =
 (* tests *)
 let () =
   let ctx = make () in
-  ctx |> add_entail (Syntax.parse_instants "{A}") (Syntax.parse_instants "{}");
-  assert (ctx |> exists_entail (Syntax.parse_instants "{A}") (Syntax.parse_instants "{}"));
-  ctx |> add_entail (Syntax.parse_instants "{B}") (Syntax.parse_instants "{A}");
-  ctx |> add_entail (Syntax.parse_instants "{A, B}") (Syntax.parse_instants "{B}");
-  assert (ctx |> exists_entail (Syntax.parse_instants "{B}") (Syntax.parse_instants "{}"));
-  assert (ctx |> exists_entail (Syntax.parse_instants "{A, B}") (Syntax.parse_instants "{}"));
-  assert (ctx |> exists_entail (Syntax.parse_instants "{A, B}") (Syntax.parse_instants "{A}"));
+  ctx |> add_entail (Parsing.parse_instants "{A}") (Parsing.parse_instants "{}");
+  assert (ctx |> exists_entail (Parsing.parse_instants "{A}") (Parsing.parse_instants "{}"));
+  ctx |> add_entail (Parsing.parse_instants "{B}") (Parsing.parse_instants "{A}");
+  ctx |> add_entail (Parsing.parse_instants "{A, B}") (Parsing.parse_instants "{B}");
+  assert (ctx |> exists_entail (Parsing.parse_instants "{B}") (Parsing.parse_instants "{}"));
+  assert (ctx |> exists_entail (Parsing.parse_instants "{A, B}") (Parsing.parse_instants "{}"));
+  assert (ctx |> exists_entail (Parsing.parse_instants "{A, B}") (Parsing.parse_instants "{A}"));
   ()

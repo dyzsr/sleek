@@ -11,9 +11,10 @@
  (modules
   lexer
   parser
-  syntax
+  parsing
   ast
   ast_helper
+  ast_print
   signals
   inference
   proofctx

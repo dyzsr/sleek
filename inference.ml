@@ -3,22 +3,13 @@ open Ast_helper
 
 module Set = struct
   include List
-
   type elem = Signals.t * Ast.term option
-
   type t = elem list
 
   let empty = []
-
-  let is_empty = function
-    | [] -> true
-    | _  -> false
-
-
+  let is_empty s = List.length s = 0
   let from s t = [ (s, t) ]
-
   let union a b = a @ b |> List.sort_uniq Stdlib.compare
-
   let zip ctx a b =
     a
     |> List.fold_left

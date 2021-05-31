@@ -1,3 +1,5 @@
+open Ast_print
+
 type entry = {
   mutable first : Inference.Set.elem option;
   mutable iterations : (string * Ast.simple_entailment) list;
@@ -56,19 +58,19 @@ let show_entry hist ~verbose =
             Printf.sprintf "%s%s, %s%s" Colors.magenta (Signals.show i) Colors.yellow
               (match t with
               | None   -> "_"
-              | Some t -> Ast.show_term t)
+              | Some t -> show_term t)
           in
           List.cons (print "-" first)
     in
     let show_iterations =
       if verbose then
         List.fold_right
-          (fun (name, entailment) acc -> print name (Ast.show_simple_entailment entailment) :: acc)
+          (fun (name, entailment) acc -> print name (show_simple_entailment entailment) :: acc)
           hist.iterations
       else
         List.cons
           (let name, entailment = List.hd hist.iterations in
-           print name (Ast.show_simple_entailment entailment))
+           print name (show_simple_entailment entailment))
     in
     let show_unfoldings =
       List.fold_right List.cons
@@ -87,13 +89,13 @@ let show_entry hist ~verbose =
       | Some terms ->
           List.cons
             (print "(TERMS)"
-               (Colors.yellow ^ (List.map Ast.show_term terms |> String.concat ", ") ^ Colors.reset))
+               (Colors.yellow ^ (List.map show_term terms |> String.concat ", ") ^ Colors.reset))
     in
     let show_constraints =
       match hist.constraints with
       | None      -> id
       | Some True -> id
-      | Some con  -> List.cons (print "(CHECK)" (Ast.show_pi con))
+      | Some con  -> List.cons (print "(CHECK)" (show_pi con))
     in
     let show_verdict =
       match hist.verdict with

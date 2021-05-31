@@ -31,7 +31,7 @@ rule lex = parse
   | "\\/" | "||" | "⋁"      { OR }
   | "->"  | "→"             { IMPLY }
   | "//"                    { PAR }
-  | "#"                     { SHARP }
+  | "#"                     { HASH }
   | "."  | "·"              { DOT }
   | "^*" | "*"  | "﹡"      { KLEENE }
   | "|-" | "=>" | "⤇"      { ENTAIL }
@@ -47,4 +47,3 @@ rule lex = parse
   | "?"                     { QUESTION }
   | digit+ as n             { INT (int_of_string n) }
   | alpha alnum* as id      { IDENT id }
-  | _                       { UNKNOWN }

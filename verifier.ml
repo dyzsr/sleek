@@ -1,3 +1,5 @@
+open Ast_print
+
 let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
   let rec aux ctx first_opt (lhs : Ast.simple_effects) rhs =
     let hist = History.make_entry () in
@@ -130,6 +132,6 @@ let show_verification ~case ~no ~verdict ~verbose ~history =
   let no = string_of_int no in
   Colors.reset
   ^ Printf.sprintf "%s%-10s %s┃  %s\n" Colors.bold ("Case " ^ no) Colors.reset
-      (Ast.show_specification case)
+      (show_specification case)
   ^ Printf.sprintf "%s\n" (History.show history ~verbose)
   ^ Printf.sprintf "%s%-10s %s┃  %s\n" Colors.bold "Verdict" Colors.reset verdict

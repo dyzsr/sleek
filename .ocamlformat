@@ -8,4 +8,5 @@ break-string-literals=never
 if-then-else=fit-or-vertical
 let-binding-spacing=sparse
 margin=100
+module-item-spacing=preserve
 type-decl=sparse
