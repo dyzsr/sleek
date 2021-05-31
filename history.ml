@@ -20,7 +20,7 @@ let make_entry () =
   }
 
 
-let set_first (i, t) hist = hist.first <- Some (i, t)
+let set_first first hist = hist.first <- Some first
 
 let add_iteration (label, es) hist =
   (* Printf.printf "%s :: %s\n" label (Ast.show_entailment es); *)
@@ -52,13 +52,17 @@ let show_entry hist ~verbose =
     in
     let show_first =
       match hist.first with
-      | None        -> id
-      | Some (i, t) ->
+      | None             -> id
+      | Some { i; t; p } ->
           let first =
-            Printf.sprintf "%s%s, %s%s" Colors.magenta (Signals.show i) Colors.yellow
+            Printf.sprintf "%s%s, %s%s, %s%s" Colors.magenta (Signals.show i) Colors.yellow
               (match t with
               | None   -> "_"
               | Some t -> show_term t)
+              Colors.magenta
+              (match p with
+              | None   -> "_"
+              | Some p -> show_term p)
           in
           List.cons (print "-" first)
     in

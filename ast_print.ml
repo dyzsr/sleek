@@ -5,16 +5,18 @@ let enclose str = "(" ^ str ^ ")"
 let nothing str = str
 
 let rec show_term_with_prec lprec rprec = function
-  | Const i        -> string_of_int i
-  | Var v          -> v
-  | Gen n          -> "@" ^ string_of_int n
-  | Plus (t1, t2)  ->
+  | Const n      -> string_of_float n
+  | Var v        -> v
+  | Gen n        -> "@" ^ string_of_int n
+  | Add (t1, t2) ->
       show_term_with_prec 0 50 t1 ^ "+" ^ show_term_with_prec 50 0 t2
       |> if lprec >= 50 || rprec > 50 then enclose else nothing
-  | Minus (t1, t2) ->
+  | Sub (t1, t2) ->
       show_term_with_prec 0 50 t1 ^ "-" ^ show_term_with_prec 50 0 t2
       |> if lprec >= 50 || rprec > 50 then enclose else nothing
-
+  | Mul (t1, t2) ->
+      show_term_with_prec 0 60 t1 ^ "✕" ^ show_term_with_prec 60 0 t2
+      |> if lprec >= 60 || rprec > 60 then enclose else nothing
 
 let show_term p = Colors.underline ^ show_term_with_prec 0 0 p ^ Colors.no_underline
 
@@ -41,7 +43,6 @@ let rec show_pi_with_prec lprec rprec = function
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
   | Not p               -> "¬" ^ show_pi_with_prec 90 0 p
 
-
 let show_pi p = Colors.cyan ^ show_pi_with_prec 0 0 p ^ Colors.reset
 
 let rec show_instants_with_prec lprec rprec = function
@@ -60,6 +61,11 @@ let rec show_instants_with_prec lprec rprec = function
         (show_instants_with_prec 0 10 es1)
         (show_instants_with_prec 10 0 es2)
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
+  | PCases ks           ->
+      let show_case (p, es) =
+        Printf.sprintf "%s → %s" (show_term p) (show_instants_with_prec 0 0 es)
+      in
+      List.map show_case ks |> String.concat " | " |> fun x -> "[" ^ x ^ "]"
   | Kleene es           ->
       Printf.sprintf "%s﹡" (show_instants_with_prec 0 40 es)
       |> if rprec >= 40 then enclose else nothing
@@ -67,25 +73,20 @@ let rec show_instants_with_prec lprec rprec = function
       Printf.sprintf "%s # %s" (show_instants_with_prec 0 20 es) (show_term term)
       |> if lprec >= 20 || rprec >= 20 then enclose else nothing
 
-
 let show_instants es = Colors.cyan ^ show_instants_with_prec 0 0 es ^ Colors.reset
 
 let show_simple_effects (pi, instants) =
   Printf.sprintf "%s: %s" (show_pi_with_prec 0 99 pi) (show_instants instants)
 
-
 let show_effects l =
   let strs = List.map show_simple_effects l in
   String.concat (Colors.bold ^ "  ⋁  " ^ Colors.no_bold) strs
 
-
 let show_simple_entailment (SimpleEntail { lhs; rhs }) =
   Printf.sprintf "%s  ⤇  %s" (show_simple_effects lhs) (show_simple_effects rhs)
 
-
 let show_entailment (Entail { lhs; rhs }) =
   Printf.sprintf "%s  ⤇  %s" (show_effects lhs) (show_effects rhs)
-
 
 let show_specification (Spec (entailment, assertion)) =
   Printf.sprintf "%s %s:: %B%s" (show_entailment entailment) Colors.magenta assertion Colors.reset

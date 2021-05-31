@@ -8,9 +8,17 @@ let fixpoint ~f ?(fn_iter = fun _ -> ()) ?(fn_stop = fun _ -> ()) init =
   in
   iter init
 
+let opt_iter ~f = function
+  | None   -> ()
+  | Some x -> f x
 
-let opt_map2 ?(sn = fun x -> x) ?(ns = fun y -> y) ~ss = function
+let opt_map ~f = function
+  | None   -> None
+  | Some x -> Some (f x)
+
+let opt_map2 ?(a = fun x -> x) ?(b = fun y -> y) ~ab x y =
+  match (x, y) with
   | None, None     -> None
-  | Some x, None   -> Some (sn x)
-  | None, Some y   -> Some (ns y)
-  | Some x, Some y -> Some (ss x y)
+  | Some x, None   -> Some (a x)
+  | None, Some y   -> Some (b y)
+  | Some x, Some y -> Some (ab x y)

@@ -1,13 +1,9 @@
 open Ast_print
 
 let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
-  let rec aux ctx first_opt (lhs : Ast.simple_effects) rhs =
+  let rec aux ctx ?first lhs rhs =
     let hist = History.make_entry () in
-    let () =
-      match first_opt with
-      | None        -> ()
-      | Some (i, t) -> hist |> History.set_first (i, t)
-    in
+    Utils.opt_iter ~f:(fun x -> hist |> History.set_first x) first;
     let bot_lhs (_, es1) = es1 = Ast.Bottom
     and bot_rhs (_, es2) = es2 = Ast.Bottom
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
@@ -22,7 +18,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
                let ctx = Proofctx.clone ctx in
                let es1 = Inference.partial_deriv ctx x es1 in
                let es2 = Inference.partial_deriv ctx x es2 in
-               let verdict, sub_hist = aux ctx (Some x) (pi1, es1) (pi2, es2) in
+               let verdict, sub_hist = aux ctx ~first:x (pi1, es1) (pi2, es2) in
                hist |> History.add_unfolding sub_hist;
                verdict)
       in
@@ -70,8 +66,8 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
         let _, es1 = lhs in
         let _, es2 = rhs in
         let gen = ctx |> Proofctx.current_term_gen in
-        let t1, cond1 = Ast_helper.total_terms_of_es es1 gen in
-        let t2, cond2 = Ast_helper.total_terms_of_es es2 gen in
+        let t1, cond1 = Ast_helper.total_time_of_es es1 gen in
+        let t2, cond2 = Ast_helper.total_time_of_es es2 gen in
         ctx |> Proofctx.add_precond Ast_helper.(t1 =* t2 &&* cond1 &&* cond2);
         check true)
       else (
@@ -91,8 +87,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     ctx |> Proofctx.add_precond pre;
     ctx |> Proofctx.add_postcond post
   in
-  aux ctx None lhs rhs
-
+  aux ctx lhs rhs
 
 let verify_entailment (Ast.Entail { lhs; rhs }) =
   let verdict, entriess =
@@ -116,7 +111,6 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
   in
   (verdict, History.from_entries (List.rev entriess))
 
-
 let verify_specification (Ast.Spec (entailment, assertion)) =
   let verdict, history = verify_entailment entailment in
   if verdict == assertion then
@@ -126,7 +120,6 @@ let verify_specification (Ast.Spec (entailment, assertion)) =
       Printf.sprintf "%sIncorrect%s  got: %s%B%s  expect: %s%B%s" Colors.red Colors.reset
         Colors.blue verdict Colors.reset Colors.blue assertion Colors.reset,
       history )
-
 
 let show_verification ~case ~no ~verdict ~verbose ~history =
   let no = string_of_int no in

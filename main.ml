@@ -274,8 +274,9 @@ let tests =
     "t < 3: {Doing}* # t.{Done}  |-  u < 4: ({Doing} + {Other})* # u . {Done} : true";
     "t < 3: {A}* # t.{B} || True: {B}  |-  u < 4: {A}* # u.{B}  :: true";
     "True: {A}.{C}.B?.{D}  |-  True: {A}.B?.{D}  :: true";
+    (* Probabilities *)
+    "(): [0.5 -> {A} | 0.5 -> {B}]  |-  (p < 0.6): [p -> {A} | q -> {B}] : true";
   ]
-
 
 let () =
   tests

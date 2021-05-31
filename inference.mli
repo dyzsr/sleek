@@ -1,13 +1,19 @@
 module Set : sig
   include module type of List
-  type elem = Signals.t * Ast.term option
+  type elem = {
+    i : Signals.t;
+    t : Ast.term option;
+    p : Ast.term option;
+  }
   type t = elem list
   val empty : t
   val is_empty : t -> bool
-  val from : Signals.t -> Ast.term option -> t
+  val from : ?t:Ast.term -> ?p:Ast.term -> Signals.t -> t
   val union : t -> t -> t
   val zip : Proofctx.t -> t -> t -> t
 end
+
+val is_bot : Ast.instants -> bool
 
 val nullable : Ast.instants -> bool
 

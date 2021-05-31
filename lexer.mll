@@ -32,6 +32,7 @@ rule lex = parse
   | "->"  | "→"             { IMPLY }
   | "//"                    { PAR }
   | "#"                     { HASH }
+  | "|"                     { BAR }
   | "."  | "·"              { DOT }
   | "^*" | "*"  | "﹡"      { KLEENE }
   | "|-" | "=>" | "⤇"      { ENTAIL }
@@ -40,10 +41,14 @@ rule lex = parse
   | "::"                    { COLON2 }
   | "("                     { LPAREN }
   | ")"                     { RPAREN }
+  | "["                     { LBRACK }
+  | "]"                     { RBRACK }
   | "{"                     { LBRACE }
   | "}"                     { RBRACE }
   | "bot" | "_|_" | "⏊"    { BOTTOM }
   | "emp" | "𝝐"             { EMPTY }
   | "?"                     { QUESTION }
-  | digit+ as n             { INT (int_of_string n) }
+  | digit+ as n             { NUM (float_of_string n) }
+  | digit+ "." as n         { NUM (float_of_string n) }
+  | digit* "." digit+ as n  { NUM (float_of_string n) }
   | alpha alnum* as id      { IDENT id }

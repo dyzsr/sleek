@@ -1,25 +1,16 @@
 open Ast
 
-let ( +* ) a b = Plus (a, b)
-
-let ( -* ) a b = Minus (a, b)
-
+let ( +* ) a b = Add (a, b)
+let ( -* ) a b = Sub (a, b)
+let ( ** ) a b = Mul (a, b)
 let ( =* ) a b = Atomic (Eq, a, b)
-
 let ( <* ) a b = Atomic (Lt, a, b)
-
 let ( <=* ) a b = Atomic (Le, a, b)
-
 let ( >* ) a b = Atomic (Gt, a, b)
-
 let ( >=* ) a b = Atomic (Ge, a, b)
-
 let ( &&* ) a b = And (a, b)
-
 let ( ||* ) a b = Or (a, b)
-
 let ( =>* ) a b = Imply (a, b)
-
 let ( !* ) a = Not a
 
 type term_gen = int ref
@@ -29,13 +20,8 @@ let next_term gen =
   gen := !gen + 1;
   Ast.Gen no
 
-
-let total_terms_of_es es gen =
+let total_time_of_es es gen =
   let rec aux = function
-    | Bottom              -> (Const 0, True)
-    | Empty               -> (Const 0, True)
-    | Instant _           -> (Const 0, True)
-    | Await _             -> (Const 0, True)
     | Sequence (es1, es2) ->
         let t1, cond1 = aux es1 in
         let t2, cond2 = aux es2 in
@@ -50,26 +36,34 @@ let total_terms_of_es es gen =
         let t2, cond2 = aux es2 in
         let t = gen |> next_term in
         (t, cond1 &&* cond2 &&* (t =* t1 &&* (t =* t2)))
-    | Kleene _            -> (Const 0, True)
+    | PCases ks           ->
+        let t = gen |> next_term in
+        let cond =
+          List.fold_left
+            (fun acc (_, es) ->
+              let t', cond = aux es in
+              acc &&* cond &&* (t =* t'))
+            True ks
+        in
+        (t, cond)
     | Timed (_, t)        -> (t, True)
+    | _                   -> (Const 0., True)
   in
   let total, extra_conds = aux es in
   (total, extra_conds)
 
-
 let rec vars_of_term acc = function
-  | Var v          -> v :: acc
-  | Gen n          -> ("@" ^ string_of_int n) :: acc
-  | Plus (t1, t2)  ->
+  | Var v        -> v :: acc
+  | Gen n        -> ("@" ^ string_of_int n) :: acc
+  | Add (t1, t2) ->
       let acc = vars_of_term acc t1 in
       let acc = vars_of_term acc t2 in
       acc
-  | Minus (t1, t2) ->
+  | Sub (t1, t2) ->
       let acc = vars_of_term acc t1 in
       let acc = vars_of_term acc t2 in
       acc
-  | _              -> acc
-
+  | _            -> acc
 
 let rec visit_pi f = function
   | True               -> ()
@@ -80,20 +74,15 @@ let rec visit_pi f = function
   | Imply (p1, p2)     -> visit_pi f p1; visit_pi f p2
   | Not pi             -> visit_pi f pi
 
-
 let rec filter_pi f = function
   | True                     -> Some True
   | False                    -> Some False
   | Atomic (_, t1, t2) as pi -> if f t1 t2 then Some pi else None
-  | And (p1, p2)             -> Utils.opt_map2 ~ss:( &&* ) (filter_pi f p1, filter_pi f p2)
-  | Or (p1, p2)              -> Utils.opt_map2 ~ss:( ||* ) (filter_pi f p1, filter_pi f p2)
-  | Imply (p1, p2)           -> Utils.opt_map2 ~ss:( =>* ) ~sn:( !* )
-                                  (filter_pi f p1, filter_pi f p2)
-  | Not pi                   -> (
-      match filter_pi f pi with
-      | None   -> None
-      | Some p -> Some (Not p))
-
+  | And (p1, p2)             -> Utils.opt_map2 ~ab:( &&* ) (filter_pi f p1) (filter_pi f p2)
+  | Or (p1, p2)              -> Utils.opt_map2 ~ab:( ||* ) (filter_pi f p1) (filter_pi f p2)
+  | Imply (p1, p2)           -> Utils.opt_map2 ~ab:( =>* ) ~a:( !* ) (filter_pi f p1)
+                                  (filter_pi f p2)
+  | Not pi                   -> Utils.opt_map ~f:( !* ) (filter_pi f pi)
 
 let filter_by_relevance pi used_vars =
   let get_vars t1 t2 =
@@ -104,31 +93,29 @@ let filter_by_relevance pi used_vars =
   let module Dsu = Map.Make (String) in
   let dsu = ref Dsu.empty in
   List.iter (fun x -> dsu := !dsu |> Dsu.add x (x, true)) used_vars;
-  let find x =
+  let rec find x =
     match !dsu |> Dsu.find_opt x with
     | None ->
         dsu := !dsu |> Dsu.add x (x, false);
         (x, false)
-    | Some (x', rel) when x = x' -> (x, rel)
+    | Some (x', rel) when x = x' -> (x', rel)
     | Some (x', _) ->
-        let x', rel = !dsu |> Dsu.find x' in
+        let x', rel = find x' in
         dsu := !dsu |> Dsu.add x (x', rel);
         (x', rel)
   in
   let union x y =
     let x', rel_x = find x in
     let y', rel_y = find y in
-    dsu := !dsu |> Dsu.add x' (x', rel_x || rel_y);
-    dsu := !dsu |> Dsu.add y' (x', rel_x || rel_y)
+    dsu := !dsu |> Dsu.add x' (y', rel_x || rel_y);
+    dsu := !dsu |> Dsu.add y' (y', rel_x || rel_y)
   in
   let find_relevent t1 t2 =
     let vars = get_vars t1 t2 in
     let _ =
       List.fold_left
         (fun prev x ->
-          (match prev with
-          | None      -> ()
-          | Some prev -> union prev x);
+          Utils.opt_iter ~f:(union x) prev;
           Some x)
         None vars
     in
@@ -143,7 +130,6 @@ let filter_by_relevance pi used_vars =
   | None    -> True
   | Some pi -> pi
 
-
 let trim_pi pi terms =
   let used_vars = ref [] in
   let () =
@@ -155,7 +141,6 @@ let trim_pi pi terms =
   in
   let pi = filter_by_relevance pi !used_vars in
   pi
-
 
 let rec normalize_pi : pi -> pi = function
   (* reduction *)
@@ -199,7 +184,6 @@ let rec normalize_pi : pi -> pi = function
         Imply (pi1, normalize_pi pi2)
   | pi -> pi
 
-
 let rec normalize_es : instants -> instants = function
   (* reduction *)
   | Union (es, Bottom) -> es
@@ -242,7 +226,6 @@ let rec normalize_es : instants -> instants = function
   | Kleene es -> Kleene (normalize_es es)
   | Timed (es, t) -> Timed (normalize_es es, t)
   | es -> es
-
 
 let normalize = function
   | False, _  -> (False, Bottom)

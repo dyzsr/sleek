@@ -17,6 +17,7 @@
 %token MINUS            "-"
 %token AND              "&&"
 %token OR               "||"
+%token BAR              "|"
 %token EQ               "="
 %token LT               "<"
 %token LE               "<="
@@ -24,13 +25,15 @@
 %token GE               ">="
 %token LPAREN           "("
 %token RPAREN           ")"
+%token LBRACK           "["
+%token RBRACK           "]"
 %token LBRACE           "{"
 %token RBRACE           "}"
 %token BOTTOM           "_|_"
 %token EMPTY            "empty"
 %token QUESTION         "?"
 %token HASH             "#"
-%token <int> INT        "int"
+%token <float> NUM      "num"
 %token <string> IDENT   "ident"
 
 %start specification only_entailment
@@ -85,7 +88,8 @@ simple_effects:
   | p=pi ":"  es=instants             { (p, es) }
 
 pi:
-    "True"                            { Ast.True }
+    "(" ")"                           { Ast.True }
+  | "True"                            { Ast.True }
   | "False"                           { Ast.False }
   | pi=atomic                         { pi }
   | "~" "(" pi=paren_pi ")"           { Ast.Not pi }
@@ -105,7 +109,7 @@ atomic:
   | t1=term ">=" t2=term              { Ast_helper.(t1 >=* t2) }
 
 term:
-    i="int"                           { Ast.Const i }
+    n="num"                           { Ast.Const n }
   | v="ident"                         { Ast.Var v }
   | t1=term "+" t2=term               { Ast_helper.(t1 +* t2) }
   | t1=term "-" t2=term               { Ast_helper.(t1 -* t2) }
@@ -118,9 +122,17 @@ instants:
   | es1=instants "+" es2=instants     { Ast.Union (es1, es2) }
   | es1=instants "."  es2=instants    { Ast.Sequence (es1, es2) }
   | es1=instants "//" es2=instants    { Ast.Parallel (es1, es2) }
+  | "[" ks=pcases "]"                 { Ast.PCases ks }
   | es=instants "^*"                  { Ast.Kleene (es) }
   | es=instants "#" t=term            { Ast.Timed (es, t) }
   | "(" es=instants ")"               { es }
+
+pcases:
+    k=pcase                           { [ k ] }
+  | k=pcase "|" ks=pcases             { k :: ks }
+
+pcase:
+    t=term "->" es=instants           { (t, es) }
 
 instant:
     "{" "}"                           { Signals.empty }

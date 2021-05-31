@@ -1,9 +1,10 @@
 type term =
-  | Const of int
+  | Const of float
   | Var   of string
   | Gen   of int
-  | Plus  of term * term
-  | Minus of term * term
+  | Add   of term * term
+  | Sub   of term * term
+  | Mul   of term * term
 
 type atomic_op =
   | Eq
@@ -29,6 +30,7 @@ type instants =
   | Sequence of instants * instants
   | Union    of instants * instants
   | Parallel of instants * instants
+  | PCases   of (term * instants) list
   | Kleene   of instants
   | Timed    of instants * term
 

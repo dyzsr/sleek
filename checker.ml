@@ -1,11 +1,12 @@
 open Z3
 
 let rec term_to_expr ctx : Ast.term -> Expr.expr = function
-  | Const n        -> Arithmetic.Real.mk_numeral_i ctx n
-  | Var v          -> Arithmetic.Real.mk_const_s ctx v
-  | Gen i          -> Arithmetic.Real.mk_const_s ctx ("t" ^ string_of_int i ^ "'")
-  | Plus (t1, t2)  -> Arithmetic.mk_add ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
-  | Minus (t1, t2) -> Arithmetic.mk_sub ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
+  | Const n      -> Arithmetic.Real.mk_numeral_s ctx (string_of_float n)
+  | Var v        -> Arithmetic.Real.mk_const_s ctx v
+  | Gen i        -> Arithmetic.Real.mk_const_s ctx ("t" ^ string_of_int i ^ "'")
+  | Add (t1, t2) -> Arithmetic.mk_add ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
+  | Sub (t1, t2) -> Arithmetic.mk_sub ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
+  | Mul (t1, t2) -> Arithmetic.mk_mul ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
 
 
 let rec pi_to_expr ctx : Ast.pi -> Expr.expr = function
