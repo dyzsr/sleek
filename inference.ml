@@ -60,7 +60,7 @@ let rec is_bot = function
   | Sequence (es1, es2) -> is_bot es1 || is_bot es2
   | Union (es1, es2)    -> is_bot es1 && is_bot es2
   | Parallel (es1, es2) -> is_bot es1 || is_bot es2
-  | PCases ks           -> List.fold_left (fun acc (_, es) -> acc || is_bot es) false ks
+  | PCases ks           -> List.fold_left (fun acc (_, es) -> acc && is_bot es) false ks
   | Kleene _            -> false
   | Timed (es, _)       -> is_bot es
 
@@ -86,7 +86,17 @@ let first ctx es =
     | Sequence (es1, _) -> aux es1
     | Union (es1, es2) -> union (aux es1) (aux es2)
     | Parallel (es1, es2) -> zip ctx (aux es1) (aux es2)
-    | PCases ks -> List.fold_left (fun acc (_, es) -> union acc (aux es)) empty ks
+    | PCases ks ->
+        List.fold_left
+          (fun acc (_, es) ->
+            union acc
+              (aux es
+              |> map (function
+                   | { i; t; p = None } ->
+                       let p = ctx |> Proofctx.next_term in
+                       { i; t; p = Some p }
+                   | elem               -> elem)))
+          empty ks
     | Kleene es -> aux es
     | Timed (es, _) ->
         aux es
@@ -98,89 +108,86 @@ let first ctx es =
   in
   aux es
 
-let partial_deriv ctx { i; t = t'; p = p' } es =
-  let rec aux ?p es =
-    match (p, p') with
-    | None, Some _ -> Bottom
-    | _            -> (
-        match es with
-        | Bottom -> Bottom
-        | Empty -> Bottom
-        | Instant j when Signals.(i |- j) -> Empty
-        | Instant _ -> Bottom
-        | Await e when Signals.(i |- make [ e ]) -> Empty
-        | Await e -> Await e
-        | Sequence (es1, es2) when nullable es1 ->
-            let deriv1 = aux es1 in
-            let deriv2 = aux es2 in
-            Union (Sequence (deriv1, es2), deriv2)
-        | Sequence (es1, es2) ->
-            let deriv1 = aux es1 in
-            Sequence (deriv1, es2)
-        | Union (es1, es2) ->
-            let deriv1 = aux es1 in
-            let deriv2 = aux es2 in
-            Union (deriv1, deriv2)
-        | Parallel (es1, es2) ->
-            let deriv1 = aux es1 in
-            let deriv2 = aux es2 in
-            Parallel (deriv1, deriv2)
-        | PCases ks -> PCases (List.map (fun (p, es) -> (p, aux es ~p)) ks)
-        | Kleene es -> aux (Sequence (es, Kleene es))
-        | Timed (es, t) -> (
-            match t' with
-            | None    -> Bottom
-            | Some t' -> (
-                match es with
-                | Bottom -> Bottom
-                | Empty -> Bottom
-                | Instant j when Signals.(i |- j) ->
-                    ctx |> Proofctx.track_term t';
-                    ctx |> Proofctx.add_precond (t =* t');
-                    Empty
-                | Instant _ -> Bottom
-                | Await e when Signals.(i |- make [ e ]) ->
-                    ctx |> Proofctx.track_term t';
-                    ctx |> Proofctx.add_precond (t =* t');
-                    Empty
-                | Await e ->
-                    let t1 = ctx |> Proofctx.next_term in
-                    let t2 = ctx |> Proofctx.next_term in
-                    let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
-                    ctx |> Proofctx.add_precond cond;
-                    ctx |> Proofctx.track_term t';
-                    ctx |> Proofctx.add_precond (t1 =* t');
-                    Timed (Await e, t2)
-                | Sequence (es1, es2) ->
-                    let t1 = ctx |> Proofctx.next_term in
-                    let t2 = ctx |> Proofctx.next_term in
-                    let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
-                    ctx |> Proofctx.add_precond cond;
-                    aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
-                | Union (es1, es2) ->
-                    let t1 = ctx |> Proofctx.next_term in
-                    let t2 = ctx |> Proofctx.next_term in
-                    let deriv1 = aux (Timed (es1, t1)) in
-                    let deriv2 = aux (Timed (es2, t2)) in
-                    let cond =
-                      match (is_bot deriv1, is_bot deriv2) with
-                      | false, false -> t =* t1 ||* (t =* t2)
-                      | false, true  -> t =* t1
-                      | true, false  -> t =* t2
-                      | true, true   -> True
-                    in
-                    ctx |> Proofctx.add_precond cond;
-                    Union (deriv1, deriv2)
-                | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
-                | PCases ks -> aux (PCases (List.map (fun (p, es) -> (p, Timed (es, t))) ks))
-                | Kleene es ->
-                    let t1 = ctx |> Proofctx.next_term in
-                    let t2 = ctx |> Proofctx.next_term in
-                    let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
-                    ctx |> Proofctx.add_precond cond;
-                    aux (Sequence (Timed (es, t1), Timed (Kleene es, t2)))
-                | Timed (_, inner_t) ->
-                    ctx |> Proofctx.add_precond (t =* inner_t);
-                    aux es)))
+let partial_deriv ctx { i; t = t'; p = _ } es =
+  let rec aux ?_p es =
+    match es with
+    | Bottom -> Bottom
+    | Empty -> Bottom
+    | Instant j when Signals.(i |- j) -> Empty
+    | Instant _ -> Bottom
+    | Await e when Signals.(i |- make [ e ]) -> Empty
+    | Await e -> Await e
+    | Sequence (es1, es2) when nullable es1 ->
+        let deriv1 = aux es1 in
+        let deriv2 = aux es2 in
+        Union (Sequence (deriv1, es2), deriv2)
+    | Sequence (es1, es2) ->
+        let deriv1 = aux es1 in
+        Sequence (deriv1, es2)
+    | Union (es1, es2) ->
+        let deriv1 = aux es1 in
+        let deriv2 = aux es2 in
+        Union (deriv1, deriv2)
+    | Parallel (es1, es2) ->
+        let deriv1 = aux es1 in
+        let deriv2 = aux es2 in
+        Parallel (deriv1, deriv2)
+    | PCases ks -> PCases (List.map (fun (p, es) -> (p, aux es ~_p:p)) ks)
+    | Kleene es -> aux (Sequence (es, Kleene es))
+    | Timed (es, t) -> (
+        match t' with
+        | None    -> Bottom
+        | Some t' -> (
+            match es with
+            | Bottom -> Bottom
+            | Empty -> Bottom
+            | Instant j when Signals.(i |- j) ->
+                ctx |> Proofctx.track_term t';
+                ctx |> Proofctx.add_precond (t =* t');
+                Empty
+            | Instant _ -> Bottom
+            | Await e when Signals.(i |- make [ e ]) ->
+                ctx |> Proofctx.track_term t';
+                ctx |> Proofctx.add_precond (t =* t');
+                Empty
+            | Await e ->
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
+                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
+                ctx |> Proofctx.add_precond cond;
+                ctx |> Proofctx.track_term t';
+                ctx |> Proofctx.add_precond (t1 =* t');
+                Timed (Await e, t2)
+            | Sequence (es1, es2) ->
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
+                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
+                ctx |> Proofctx.add_precond cond;
+                aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
+            | Union (es1, es2) ->
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
+                let deriv1 = aux (Timed (es1, t1)) in
+                let deriv2 = aux (Timed (es2, t2)) in
+                let cond =
+                  match (is_bot deriv1, is_bot deriv2) with
+                  | false, false -> t =* t1 ||* (t =* t2)
+                  | false, true  -> t =* t1
+                  | true, false  -> t =* t2
+                  | true, true   -> True
+                in
+                ctx |> Proofctx.add_precond cond;
+                Union (deriv1, deriv2)
+            | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
+            | PCases ks -> aux (PCases (List.map (fun (p, es) -> (p, Timed (es, t))) ks))
+            | Kleene es ->
+                let t1 = ctx |> Proofctx.next_term in
+                let t2 = ctx |> Proofctx.next_term in
+                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
+                ctx |> Proofctx.add_precond cond;
+                aux (Sequence (Timed (es, t1), Timed (Kleene es, t2)))
+            | Timed (_, inner_t) ->
+                ctx |> Proofctx.add_precond (t =* inner_t);
+                aux es))
   in
   aux es

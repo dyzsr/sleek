@@ -9,7 +9,6 @@ let error_message text Lexing.{ pos_lnum; pos_bol; pos_cnum; _ } =
   in
   aux pos_lnum lines |> String.concat "\n"
 
-
 let lexer lexbuf = Lexer.lex lexbuf
 
 let parse parser text =
@@ -19,7 +18,6 @@ let parse parser text =
     let error = error_message text (Lexing.lexeme_start_p lexbuf) in
     Printf.eprintf "%s%s%s\n" Colors.red error Colors.reset;
     failwith "Syntax error"
-
 
 let parse_specification text = parse Parser.specification text
 

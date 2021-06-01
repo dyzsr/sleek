@@ -4,8 +4,8 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
   let rec aux ctx ?first lhs rhs =
     let hist = History.make_entry () in
     Utils.opt_iter ~f:(fun x -> hist |> History.set_first x) first;
-    let bot_lhs (_, es1) = es1 = Ast.Bottom
-    and bot_rhs (_, es2) = es2 = Ast.Bottom
+    let bot_lhs (_, es1) = Inference.is_bot es1
+    and bot_rhs (_, es2) = Inference.is_bot es2
     and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
     and reoccur ctx (_, es1) (_, es2) = Proofctx.exists_entail es1 es2 ctx
     and unfold ctx (pi1, es1) (pi2, es2) =
