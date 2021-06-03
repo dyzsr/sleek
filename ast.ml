@@ -5,6 +5,7 @@ type term =
   | Add   of term * term
   | Sub   of term * term
   | Mul   of term * term
+  | Neg   of term
 
 type atomic_op =
   | Eq

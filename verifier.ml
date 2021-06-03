@@ -23,15 +23,15 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
                verdict)
       in
       (verdict, terminate)
-    and normal lhs rhs =
+    and normalize lhs rhs =
       let lhs =
-        Utils.fixpoint ~f:Ast_helper.normalize
+        Utils.fixpoint ~f:Ast_helper.simplify
           ~fn_iter:(fun es ->
             hist |> History.add_iteration ("NORM-LHS", SimpleEntail { lhs = es; rhs }))
           lhs
       in
       let rhs =
-        Utils.fixpoint ~f:Ast_helper.normalize
+        Utils.fixpoint ~f:Ast_helper.simplify
           ~fn_iter:(fun es ->
             hist |> History.add_iteration ("NORM-RHS", SimpleEntail { lhs; rhs = es }))
           rhs
@@ -50,7 +50,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
           verdict
     in
     (* Verify *)
-    let lhs, rhs = normal lhs rhs in
+    let lhs, rhs = normalize lhs rhs in
     let verdict =
       if bot_lhs lhs then (
         hist |> History.add_iteration ("Bot-LHS", SimpleEntail { lhs; rhs });

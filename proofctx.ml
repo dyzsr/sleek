@@ -10,11 +10,9 @@ type t = {
 }
 
 let make () = { term_gen = ref 0; precond = True; postcond = True; terms = []; entails = [] }
-
 let clone ctx = { ctx with term_gen = ctx.term_gen }
 
 let current_term_gen ctx = ctx.term_gen
-
 let next_term ctx = next_term ctx.term_gen
 
 let add_entail lhs rhs ctx =
@@ -30,7 +28,6 @@ let add_entail lhs rhs ctx =
     @ ctx.entails
   in
   ctx.entails <- entails
-
 
 let exists_entail lhs rhs ctx =
   let isomorphic (es1, es2) (es1', es2') =
@@ -72,17 +69,13 @@ let exists_entail lhs rhs ctx =
   in
   List.exists (isomorphic (lhs, rhs)) ctx.entails
 
-
 let add_precond cond ctx = ctx.precond <- cond =>* ctx.precond
-
 let add_postcond cond ctx = ctx.postcond <- cond &&* ctx.postcond
 
 let track_term term ctx = ctx.terms <- term :: ctx.terms
-
 let tracked_terms ctx =
   ctx.terms <- List.sort_uniq Stdlib.compare ctx.terms;
   ctx.terms
-
 
 let check_constraints ctx =
   let constrnt =
@@ -93,9 +86,8 @@ let check_constraints ctx =
     aux ctx.precond
   in
   let constrnt = Ast_helper.trim_pi constrnt (ctx |> tracked_terms) in
-  let constrnt = Utils.fixpoint ~f:normalize_pi constrnt in
+  let constrnt = Utils.fixpoint ~f:simplify_pi constrnt in
   (not (Checker.check (Not constrnt)), constrnt)
-
 
 (* tests *)
 let () =

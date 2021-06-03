@@ -108,67 +108,90 @@ let first ctx es =
   in
   aux es
 
-let partial_deriv ctx { i; t = t'; p = _ } es =
-  let rec aux ?_p es =
-    match es with
-    | Bottom -> Bottom
-    | Empty -> Bottom
-    | Instant j when Signals.(i |- j) -> Empty
-    | Instant _ -> Bottom
-    | Await e when Signals.(i |- make [ e ]) -> Empty
-    | Await e -> Await e
-    | Sequence (es1, es2) when nullable es1 ->
-        let deriv1 = aux es1 in
-        let deriv2 = aux es2 in
-        Union (Sequence (deriv1, es2), deriv2)
-    | Sequence (es1, es2) ->
-        let deriv1 = aux es1 in
-        Sequence (deriv1, es2)
-    | Union (es1, es2) ->
-        let deriv1 = aux es1 in
-        let deriv2 = aux es2 in
-        Union (deriv1, deriv2)
-    | Parallel (es1, es2) ->
-        let deriv1 = aux es1 in
-        let deriv2 = aux es2 in
-        Parallel (deriv1, deriv2)
-    | PCases ks -> PCases (List.map (fun (p, es) -> (p, aux es ~_p:p)) ks)
-    | Kleene es -> aux (Sequence (es, Kleene es))
-    | Timed (es, t) -> (
-        match t' with
-        | None    -> Bottom
-        | Some t' -> (
-            match es with
-            | Bottom -> Bottom
-            | Empty -> Bottom
-            | Instant j when Signals.(i |- j) ->
-                ctx |> Proofctx.track_term t';
-                ctx |> Proofctx.add_precond (t =* t');
-                Empty
-            | Instant _ -> Bottom
-            | Await e when Signals.(i |- make [ e ]) ->
-                ctx |> Proofctx.track_term t';
-                ctx |> Proofctx.add_precond (t =* t');
-                Empty
-            | Await e ->
-                let t1 = ctx |> Proofctx.next_term in
-                let t2 = ctx |> Proofctx.next_term in
-                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
-                ctx |> Proofctx.add_precond cond;
-                ctx |> Proofctx.track_term t';
-                ctx |> Proofctx.add_precond (t1 =* t');
-                Timed (Await e, t2)
-            | Sequence (es1, es2) ->
-                let t1 = ctx |> Proofctx.next_term in
-                let t2 = ctx |> Proofctx.next_term in
-                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
-                ctx |> Proofctx.add_precond cond;
-                aux (Sequence (Timed (es1, t1), Timed (es2, t2)))
-            | Union (es1, es2) ->
-                let t1 = ctx |> Proofctx.next_term in
-                let t2 = ctx |> Proofctx.next_term in
-                let deriv1 = aux (Timed (es1, t1)) in
-                let deriv2 = aux (Timed (es2, t2)) in
+let partial_deriv ctx { i; t = t'; p = p' } es =
+  let ps = ref [] in
+  let add_prob = function
+    | Some p -> ps := p :: !ps
+    | _      -> ()
+  in
+  let rec aux ?t ?p es =
+    match (t', t) with
+    | None, Some _ -> Bottom
+    | _            -> (
+        match es with
+        | Bottom -> Bottom
+        | Empty -> Bottom
+        | Instant j when Signals.(i |- j) ->
+            (match (t', t) with
+            | Some t', Some t ->
+                ctx |> Proofctx.track_term t;
+                ctx |> Proofctx.add_precond (t =* t')
+            | _               -> ());
+            add_prob p; Empty
+        | Instant _ -> Bottom
+        | Await e when Signals.(i |- make [ e ]) ->
+            (match (t', t) with
+            | Some t', Some t ->
+                ctx |> Proofctx.track_term t;
+                ctx |> Proofctx.add_precond (t =* t')
+            | _               -> ());
+            add_prob p; Empty
+        | Await e ->
+            let es' =
+              match (t', t) with
+              | Some t', Some t ->
+                  let t1 = ctx |> Proofctx.next_term in
+                  let t2 = ctx |> Proofctx.next_term in
+                  let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
+                  ctx |> Proofctx.add_precond cond;
+                  ctx |> Proofctx.track_term t;
+                  ctx |> Proofctx.add_precond (t1 =* t');
+                  Timed (Await e, t2)
+              | _               -> Await e
+            in
+            add_prob p; es'
+        | Sequence (es1, es2) when nullable es1 ->
+            let t1, t2, es2 =
+              match t with
+              | Some t ->
+                  let t1 = ctx |> Proofctx.next_term in
+                  let t2 = ctx |> Proofctx.next_term in
+                  let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
+                  ctx |> Proofctx.add_precond cond;
+                  (Some t1, Some t2, Timed (es2, t2))
+              | _      -> (None, None, es2)
+            in
+            let deriv1 = aux es1 ?t:t1 ?p in
+            let deriv2 = aux es2 ?t:t2 ?p in
+            Union (Sequence (deriv1, es2), deriv2)
+        | Sequence (es1, es2) ->
+            let t1, es2 =
+              match t with
+              | Some t ->
+                  let t1 = ctx |> Proofctx.next_term in
+                  let t2 = ctx |> Proofctx.next_term in
+                  let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
+                  ctx |> Proofctx.add_precond cond;
+                  (Some t1, Timed (es2, t2))
+              | _      -> (None, es2)
+            in
+            let deriv1 = aux es1 ?t:t1 ?p in
+            Sequence (deriv1, es2)
+        | Union (es1, es2) ->
+            let t1, t2 =
+              match t with
+              | Some _ ->
+                  let t1 = ctx |> Proofctx.next_term in
+                  let t2 = ctx |> Proofctx.next_term in
+                  (Some t1, Some t2)
+              | _      -> (None, None)
+            in
+            let deriv1 = aux es1 ?t:t1 ?p in
+            let deriv2 = aux es2 ?t:t2 ?p in
+            (match t with
+            | Some t ->
+                let t1 = Utils.opt_value t1 in
+                let t2 = Utils.opt_value t2 in
                 let cond =
                   match (is_bot deriv1, is_bot deriv2) with
                   | false, false -> t =* t1 ||* (t =* t2)
@@ -176,18 +199,42 @@ let partial_deriv ctx { i; t = t'; p = _ } es =
                   | true, false  -> t =* t2
                   | true, true   -> True
                 in
-                ctx |> Proofctx.add_precond cond;
-                Union (deriv1, deriv2)
-            | Parallel (es1, es2) -> aux (Parallel (Timed (es1, t), Timed (es2, t)))
-            | PCases ks -> aux (PCases (List.map (fun (p, es) -> (p, Timed (es, t))) ks))
-            | Kleene es ->
-                let t1 = ctx |> Proofctx.next_term in
-                let t2 = ctx |> Proofctx.next_term in
-                let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
-                ctx |> Proofctx.add_precond cond;
-                aux (Sequence (Timed (es, t1), Timed (Kleene es, t2)))
-            | Timed (_, inner_t) ->
-                ctx |> Proofctx.add_precond (t =* inner_t);
-                aux es))
+                ctx |> Proofctx.add_precond cond
+            | _      -> ());
+            Union (deriv1, deriv2)
+        | Parallel (es1, es2) ->
+            let deriv1 = aux es1 ?t ?p in
+            let deriv2 = aux es2 ?t ?p in
+            Parallel (deriv1, deriv2)
+        | PCases ks -> (
+            let total = List.fold_left (fun acc (p, _) -> acc +* p) (Const 0.) ks in
+            let cond = total =* Const 1. in
+            if is_const total then
+              ctx |> Proofctx.add_postcond cond
+            else
+              ctx |> Proofctx.add_precond cond;
+            match p with
+            | Some p -> PCases (List.map (fun (in_p, es) -> (in_p, aux es ?t ~p:(p ** in_p))) ks)
+            | None   -> PCases (List.map (fun (in_p, es) -> (in_p, aux es ?t ~p:in_p)) ks))
+        | Kleene es -> aux (Sequence (es, Kleene es)) ?t ?p
+        | Timed (es, in_t) ->
+            (match t with
+            | Some t -> ctx |> Proofctx.add_precond (t =* in_t)
+            | _      -> ());
+            aux es ~t:in_t ?p)
   in
-  aux es
+  let es' = aux es in
+  let p = List.fold_left ( +* ) (Const 0.) !ps in
+  (match (p', !ps) with
+  | None, []    -> ()
+  | None, _     ->
+      let cond = p =* Const 1. in
+      if is_const p then
+        ctx |> Proofctx.add_postcond cond
+      else
+        ctx |> Proofctx.add_precond cond
+  | Some p', [] -> ctx |> Proofctx.add_postcond (p' =* Const 1.)
+  | Some p', _  ->
+      ctx |> Proofctx.track_term p';
+      ctx |> Proofctx.add_precond (p =* p'));
+  es'

@@ -8,6 +8,10 @@ let fixpoint ~f ?(fn_iter = fun _ -> ()) ?(fn_stop = fun _ -> ()) init =
   in
   iter init
 
+let opt_value = function
+  | None   -> raise (Invalid_argument "none option")
+  | Some x -> x
+
 let opt_iter ~f = function
   | None   -> ()
   | Some x -> f x

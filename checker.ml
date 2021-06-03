@@ -7,7 +7,7 @@ let rec term_to_expr ctx : Ast.term -> Expr.expr = function
   | Add (t1, t2) -> Arithmetic.mk_add ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
   | Sub (t1, t2) -> Arithmetic.mk_sub ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
   | Mul (t1, t2) -> Arithmetic.mk_mul ctx [ term_to_expr ctx t1; term_to_expr ctx t2 ]
-
+  | Neg t        -> Arithmetic.mk_unary_minus ctx (term_to_expr ctx t)
 
 let rec pi_to_expr ctx : Ast.pi -> Expr.expr = function
   | True                -> Boolean.mk_true ctx
@@ -25,7 +25,6 @@ let rec pi_to_expr ctx : Ast.pi -> Expr.expr = function
   | Or (pi1, pi2)       -> Boolean.mk_or ctx [ pi_to_expr ctx pi1; pi_to_expr ctx pi2 ]
   | Imply (pi1, pi2)    -> Boolean.mk_implies ctx (pi_to_expr ctx pi1) (pi_to_expr ctx pi2)
   | Not pi              -> Boolean.mk_not ctx (pi_to_expr ctx pi)
-
 
 let check pi =
   let cfg = [ ("model", "false"); ("proof", "false") ] in

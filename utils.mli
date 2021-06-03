@@ -1,5 +1,6 @@
 val fixpoint : f:('a -> 'a) -> ?fn_iter:('a -> unit) -> ?fn_stop:('a -> unit) -> 'a -> 'a
 
+val opt_value : 'a option -> 'a
 val opt_iter : f:('a -> unit) -> 'a option -> unit
 val opt_map : f:('a -> 'b) -> 'a option -> 'b option
 val opt_map2 :

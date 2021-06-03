@@ -13,6 +13,15 @@ let ( ||* ) a b = Or (a, b)
 let ( =>* ) a b = Imply (a, b)
 let ( !* ) a = Not a
 
+let rec is_const = function
+  | Const _      -> true
+  | Var _        -> false
+  | Gen _        -> false
+  | Add (t1, t2) -> is_const t1 && is_const t2
+  | Sub (t1, t2) -> is_const t1 && is_const t2
+  | Mul (t1, t2) -> is_const t1 && is_const t2
+  | Neg t        -> is_const t
+
 type term_gen = int ref
 
 let next_term gen =
@@ -124,7 +133,7 @@ let filter_by_relevance pi used_vars =
   visit_pi find_relevent pi;
   let f t1 t2 =
     let vars = get_vars t1 t2 in
-    List.exists (fun x -> snd (find x)) vars
+    (is_const t1 && is_const t2) || List.exists (fun x -> snd (find x)) vars
   in
   match filter_pi f pi with
   | None    -> True
@@ -142,9 +151,31 @@ let trim_pi pi terms =
   let pi = filter_by_relevance pi !used_vars in
   pi
 
-let rec normalize_pi : pi -> pi = function
+let rec simplify_term : term -> term = function
+  | Add (t1, Const 0.) -> t1
+  | Add (Const 0., t2) -> t2
+  | Add (t1, t2)       -> Add (simplify_term t1, simplify_term t2)
+  | Sub (t1, Const 0.) -> t1
+  | Sub (Const 0., t2) -> Neg t2
+  | Sub (t1, t2)       -> Sub (simplify_term t1, simplify_term t2)
+  | Mul (_, Const 0.)  -> Const 0.
+  | Mul (Const 0., _)  -> Const 0.
+  | Mul (t1, Const 1.) -> t1
+  | Mul (Const 1., t2) -> t2
+  | Mul (t1, t2)       -> Mul (simplify_term t1, simplify_term t2)
+  | Neg (Const v)      -> Const (-.v)
+  | Neg t              -> Neg (simplify_term t)
+  | t                  -> t
+
+let rec simplify_pi : pi -> pi = function
   (* reduction *)
   | Atomic (Eq, t1, t2) when t1 = t2 -> True
+  | Atomic (op, t1, t2) ->
+      let t1' = simplify_term t1 in
+      if t1' <> t1 then
+        Atomic (op, t1', t2)
+      else
+        Atomic (op, t1, simplify_term t2)
   | And (True, pi) -> pi
   | And (pi, True) -> pi
   | And (False, _) -> False
@@ -162,29 +193,29 @@ let rec normalize_pi : pi -> pi = function
   | Not False -> True
   | And (p1, And (p2, p3)) -> And (And (p1, p2), p3)
   | Or (p1, Or (p2, p3)) -> Or (Or (p1, p2), p3)
-  (* normalize recursively *)
+  (* simplify recursively *)
   | And (pi1, pi2) ->
-      let pi1' = normalize_pi pi1 in
+      let pi1' = simplify_pi pi1 in
       if pi1' <> pi1 then
         And (pi1', pi2)
       else
-        And (pi1, normalize_pi pi2)
+        And (pi1, simplify_pi pi2)
   | Or (pi1, pi2) ->
-      let pi1' = normalize_pi pi1 in
+      let pi1' = simplify_pi pi1 in
       if pi1' <> pi1 then
         Or (pi1', pi2)
       else
-        Or (pi1, normalize_pi pi2)
-  | Not pi -> Not (normalize_pi pi)
+        Or (pi1, simplify_pi pi2)
+  | Not pi -> Not (simplify_pi pi)
   | Imply (pi1, pi2) ->
-      let pi1' = normalize_pi pi1 in
+      let pi1' = simplify_pi pi1 in
       if pi1' <> pi1 then
         Imply (pi1', pi2)
       else
-        Imply (pi1, normalize_pi pi2)
+        Imply (pi1, simplify_pi pi2)
   | pi -> pi
 
-let rec normalize_es : instants -> instants = function
+let rec simplify_es : instants -> instants = function
   (* reduction *)
   | Union (es, Bottom) -> es
   | Union (Bottom, es) -> es
@@ -199,40 +230,40 @@ let rec normalize_es : instants -> instants = function
   | Parallel (Bottom, _) -> Bottom
   | Parallel (es, es') when es = es' -> es
   | Union (Union (es1, es2), es3) -> Union (es1, Union (es2, es3))
-  | Kleene (Kleene esin) -> normalize_es (Kleene esin)
+  | Kleene (Kleene esin) -> simplify_es (Kleene esin)
   | Kleene Bottom -> Empty
   | Kleene Empty -> Empty
   | Kleene (Union (Empty, es)) -> Kleene es
   | Sequence (Sequence (es1, es2), es3) -> Sequence (es1, Sequence (es2, es3))
-  (* normalize recursively *)
+  (* simplify recursively *)
   | Sequence (es1, es2) ->
-      let es1' = normalize_es es1 in
+      let es1' = simplify_es es1 in
       if es1' <> es1 then
         Sequence (es1', es2)
       else
-        Sequence (es1, normalize_es es2)
+        Sequence (es1, simplify_es es2)
   | Union (es1, es2) ->
-      let es1' = normalize_es es1 in
+      let es1' = simplify_es es1 in
       if es1' <> es1 then
         Union (es1', es2)
       else
-        Union (es1, normalize_es es2)
+        Union (es1, simplify_es es2)
   | Parallel (es1, es2) ->
-      let es1' = normalize_es es1 in
+      let es1' = simplify_es es1 in
       if es1' <> es1 then
         Parallel (es1', es2)
       else
-        Parallel (es1, normalize_es es2)
-  | Kleene es -> Kleene (normalize_es es)
-  | Timed (es, t) -> Timed (normalize_es es, t)
+        Parallel (es1, simplify_es es2)
+  | Kleene es -> Kleene (simplify_es es)
+  | Timed (es, t) -> Timed (simplify_es es, t)
   | es -> es
 
-let normalize = function
+let simplify = function
   | False, _  -> (False, Bottom)
   | _, Bottom -> (False, Bottom)
   | pi, es    ->
-      let pi' = normalize_pi pi in
+      let pi' = simplify_pi pi in
       if pi' <> pi then
         (pi', es)
       else
-        (pi, normalize_es es)
+        (pi, simplify_es es)

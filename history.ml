@@ -55,7 +55,7 @@ let show_entry hist ~verbose =
       | None             -> id
       | Some { i; t; p } ->
           let first =
-            Printf.sprintf "%s%s, %s%s, %s%s" Colors.magenta (Signals.show i) Colors.yellow
+            Printf.sprintf "%s%s, %s❮t❯=%s, %s❮p❯=%s" Colors.magenta (Signals.show i) Colors.yellow
               (match t with
               | None   -> "_"
               | Some t -> show_term t)
@@ -106,7 +106,7 @@ let show_entry hist ~verbose =
       | None         -> id
       | Some verdict ->
           List.cons
-            (print "(RESULT)"
+            (print "[RESULT]"
                (Colors.blue ^ Colors.italic
                ^ (if verdict then "SUCCESS" else "FAILURE")
                ^ Colors.reset))

@@ -17,6 +17,8 @@ let rec show_term_with_prec lprec rprec = function
   | Mul (t1, t2) ->
       show_term_with_prec 0 60 t1 ^ "✕" ^ show_term_with_prec 60 0 t2
       |> if lprec >= 60 || rprec > 60 then enclose else nothing
+  | Neg t        -> "-" ^ show_term_with_prec 70 0 t
+                    |> if lprec > 0 || rprec > 0 then enclose else nothing
 
 let show_term p = Colors.underline ^ show_term_with_prec 0 0 p ^ Colors.no_underline
 
