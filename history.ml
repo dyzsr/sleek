@@ -1,7 +1,7 @@
 open Ast_print
 
 type entry = {
-  mutable first : Inference.Set.elem option;
+  mutable first : Inference.Set.elm option;
   mutable iterations : (string * Ast.simple_entailment) list;
   mutable unfoldings : entry list;
   mutable terms : Ast.term list option;
@@ -19,13 +19,11 @@ let make_entry () =
     verdict = None;
   }
 
-
 let set_first first hist = hist.first <- Some first
 
 let add_iteration (label, es) hist =
   (* Printf.printf "%s :: %s\n" label (Ast.show_entailment es); *)
   hist.iterations <- (label, es) :: hist.iterations
-
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
 
@@ -52,19 +50,8 @@ let show_entry hist ~verbose =
     in
     let show_first =
       match hist.first with
-      | None             -> id
-      | Some { i; t; p } ->
-          let first =
-            Printf.sprintf "%s%s, %s❮t❯=%s, %s❮p❯=%s" Colors.magenta (Signals.show i) Colors.yellow
-              (match t with
-              | None   -> "_"
-              | Some t -> show_term t)
-              Colors.magenta
-              (match p with
-              | None   -> "_"
-              | Some p -> show_term p)
-          in
-          List.cons (print "-" first)
+      | None      -> id
+      | Some elm -> List.cons (print "-" (Inference.Set.show_elm elm))
     in
     let show_iterations =
       if verbose then
@@ -116,7 +103,6 @@ let show_entry hist ~verbose =
   in
   aux "" "" hist
 
-
 type t = entry list list
 
 let from_entries l = l
@@ -149,12 +135,10 @@ let roman n =
   in
   aux 0 n
 
-
 let case_no i j =
   assert (i >= 0 && j >= 0);
   let i = roman i in
   Printf.sprintf "%s-%d" i j
-
 
 let show hist ~verbose =
   let _, output =
@@ -176,7 +160,6 @@ let show hist ~verbose =
       (1, []) hist
   in
   String.concat "\n" (List.concat (List.rev output))
-
 
 let () =
   (* test case_no *)

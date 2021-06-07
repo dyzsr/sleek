@@ -14,11 +14,11 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
       let terminate = Inference.Set.is_empty firsts in
       let verdict =
         firsts
-        |> Inference.Set.for_all (fun x ->
+        |> Inference.Set.for_all (fun first ->
                let ctx = Proofctx.clone ctx in
-               let es1 = Inference.partial_deriv ctx x es1 in
-               let es2 = Inference.partial_deriv ctx x es2 in
-               let verdict, sub_hist = aux ctx ~first:x (pi1, es1) (pi2, es2) in
+               let es1 = Inference.partial_deriv ctx first es1 in
+               let es2 = Inference.partial_deriv ctx first es2 in
+               let verdict, sub_hist = aux ctx ~first:first (pi1, es1) (pi2, es2) in
                hist |> History.add_unfolding sub_hist;
                verdict)
       in

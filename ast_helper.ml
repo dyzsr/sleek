@@ -29,6 +29,17 @@ let next_term gen =
   gen := !gen + 1;
   Ast.Gen no
 
+let pi_of_bool = function
+  | true  -> True
+  | false -> False
+
+let op_of_atomic = function
+  | Eq -> ( = )
+  | Lt -> ( < )
+  | Le -> ( <= )
+  | Gt -> ( > )
+  | Ge -> ( >= )
+
 let total_time_of_es es gen =
   let rec aux = function
     | Sequence (es1, es2) ->
@@ -152,24 +163,30 @@ let trim_pi pi terms =
   pi
 
 let rec simplify_term : term -> term = function
-  | Add (t1, Const 0.) -> t1
-  | Add (Const 0., t2) -> t2
-  | Add (t1, t2)       -> Add (simplify_term t1, simplify_term t2)
-  | Sub (t1, Const 0.) -> t1
-  | Sub (Const 0., t2) -> Neg t2
-  | Sub (t1, t2)       -> Sub (simplify_term t1, simplify_term t2)
-  | Mul (_, Const 0.)  -> Const 0.
-  | Mul (Const 0., _)  -> Const 0.
-  | Mul (t1, Const 1.) -> t1
-  | Mul (Const 1., t2) -> t2
-  | Mul (t1, t2)       -> Mul (simplify_term t1, simplify_term t2)
-  | Neg (Const v)      -> Const (-.v)
-  | Neg t              -> Neg (simplify_term t)
-  | t                  -> t
+  | Add (Const v1, Const v2) -> Const (v1 +. v2)
+  | Add (t1, Const 0.)       -> t1
+  | Add (Const 0., t2)       -> t2
+  | Add (t1, t2)             -> Add (simplify_term t1, simplify_term t2)
+  | Sub (Const v1, Const v2) -> Const (v1 -. v2)
+  | Sub (t1, Const 0.)       -> t1
+  | Sub (Const 0., t2)       -> Neg t2
+  | Sub (t1, t2)             -> Sub (simplify_term t1, simplify_term t2)
+  | Mul (Const v1, Const v2) -> Const (v1 *. v2)
+  | Mul (_, Const 0.)        -> Const 0.
+  | Mul (Const 0., _)        -> Const 0.
+  | Mul (t1, Const 1.)       -> t1
+  | Mul (Const 1., t2)       -> t2
+  | Mul (t1, t2)             -> Mul (simplify_term t1, simplify_term t2)
+  | Neg (Const v)            -> Const (-.v)
+  | Neg t                    -> Neg (simplify_term t)
+  | t                        -> t
 
 let rec simplify_pi : pi -> pi = function
   (* reduction *)
   | Atomic (Eq, t1, t2) when t1 = t2 -> True
+  | Atomic (op, Const v1, Const v2) ->
+      let op = op_of_atomic op in
+      pi_of_bool (op v1 v2)
   | Atomic (op, t1, t2) ->
       let t1' = simplify_term t1 in
       if t1' <> t1 then
