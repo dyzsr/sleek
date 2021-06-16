@@ -8,17 +8,11 @@ let fixpoint ~f ?(fn_iter = fun _ -> ()) ?(fn_stop = fun _ -> ()) init =
   in
   iter init
 
-let opt_value = function
-  | None   -> raise (Invalid_argument "none option")
-  | Some x -> x
-
-let opt_iter ~f = function
-  | None   -> ()
-  | Some x -> f x
-
-let opt_map ~f = function
-  | None   -> None
-  | Some x -> Some (f x)
+let opt_value = Option.get
+let opt_iter ~f = Option.iter f
+let opt_map ~f = Option.map f
+let opt_none = Option.is_none
+let opt_some = Option.is_some
 
 let opt_map2 ?(a = fun x -> x) ?(b = fun y -> y) ~ab x y =
   match (x, y) with
@@ -26,3 +20,8 @@ let opt_map2 ?(a = fun x -> x) ?(b = fun y -> y) ~ab x y =
   | Some x, None   -> Some (a x)
   | None, Some y   -> Some (b y)
   | Some x, Some y -> Some (ab x y)
+
+let combinations xss =
+  List.fold_left
+    (fun acc xs -> xs |> List.map (fun x -> List.map (fun ys -> x :: ys) acc) |> List.flatten)
+    [ [] ] xss

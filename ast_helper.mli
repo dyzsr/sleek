@@ -29,3 +29,5 @@ val simplify_term : term -> term
 val simplify_pi : pi -> pi
 val simplify_es : instants -> instants
 val simplify : simple_effects -> simple_effects
+
+val amend_constraints : Ast.simple_effects -> Ast.simple_effects

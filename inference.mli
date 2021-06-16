@@ -1,14 +1,11 @@
 module Set : sig
-  include module type of List
   type elm
   val show_elm : elm -> string
 
-  type t = elm list
+  type t
   val empty : t
   val is_empty : t -> bool
-  val from : ?t:Ast.term -> ?p:Ast.term -> Signals.t -> t
-  val union : t -> t -> t
-  val zip : Proofctx.t -> t -> t -> t
+  val for_all : (elm -> bool) -> t -> bool
 end
 
 val is_bot : Ast.instants -> bool

@@ -31,9 +31,9 @@ type instants =
   | Sequence of instants * instants
   | Union    of instants * instants
   | Parallel of instants * instants
-  | PCases   of (term * instants) list
   | Kleene   of instants
   | Timed    of instants * term
+  | PCases   of (term * instants) list
 
 type simple_effects = pi * instants
 

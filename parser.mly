@@ -91,7 +91,7 @@ pi:
     "(" ")"                           { Ast.True }
   | "True"                            { Ast.True }
   | "False"                           { Ast.False }
-  | pi=atomic                         { pi }
+  | pi=cmp                            { pi }
   | "~" "(" pi=paren_pi ")"           { Ast.Not pi }
   | "(" pi=paren_pi ")"               { pi }
 
@@ -101,7 +101,7 @@ paren_pi:
   | pi1=paren_pi "||" pi2=paren_pi    { Ast_helper.(pi1 ||* pi2) }
   | pi1=paren_pi "->" pi2=paren_pi    { Ast_helper.(pi1 =>* pi2) }
 
-atomic:
+cmp:
     t1=term "=" t2=term               { Ast_helper.(t1 =* t2) }
   | t1=term "<" t2=term               { Ast_helper.(t1 <* t2) }
   | t1=term "<=" t2=term              { Ast_helper.(t1 <=* t2) }

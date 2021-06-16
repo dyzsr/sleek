@@ -56,6 +56,7 @@ let total_time_of_es es gen =
         let t2, cond2 = aux es2 in
         let t = gen |> next_term in
         (t, cond1 &&* cond2 &&* (t =* t1 &&* (t =* t2)))
+    | Timed (_, t)        -> (t, True)
     | PCases ks           ->
         let t = gen |> next_term in
         let cond =
@@ -66,7 +67,6 @@ let total_time_of_es es gen =
             True ks
         in
         (t, cond)
-    | Timed (_, t)        -> (t, True)
     | _                   -> (Const 0., True)
   in
   let total, extra_conds = aux es in
@@ -284,3 +284,19 @@ let simplify = function
         (pi', es)
       else
         (pi, simplify_es es)
+
+let amend_constraints (pi, es) =
+  let pi = ref pi in
+  let rec aux = function
+    | PCases ks           ->
+        let total_p = List.fold_left (fun acc (p, es) -> aux es; p +* acc) (Const 0.) ks in
+        let cond = total_p =* Const 1. in
+        pi := cond &&* !pi
+    | Sequence (es1, es2) -> aux es1; aux es2
+    | Union (es1, es2)    -> aux es1; aux es2
+    | Parallel (es1, es2) -> aux es1; aux es2
+    | Kleene es           -> aux es
+    | Timed (es, _)       -> aux es
+    | _                   -> ()
+  in
+  aux es; (!pi, es)

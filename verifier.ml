@@ -1,6 +1,18 @@
 open Ast_print
 
 let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
+  let preprocess ctx lhs rhs =
+    let lhs = ctx |> Proofctx.replace_constants lhs in
+    let rhs = ctx |> Proofctx.replace_constants rhs in
+    let lhs = Ast_helper.amend_constraints lhs in
+    let rhs = Ast_helper.amend_constraints rhs in
+    (* build constraints *)
+    let pre, _ = lhs in
+    let post, _ = rhs in
+    ctx |> Proofctx.add_precond pre;
+    ctx |> Proofctx.add_postcond post;
+    (lhs, rhs)
+  in
   let rec aux ctx ?first lhs rhs =
     let hist = History.make_entry () in
     Utils.opt_iter ~f:(fun x -> hist |> History.set_first x) first;
@@ -18,7 +30,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
                let ctx = Proofctx.clone ctx in
                let es1 = Inference.partial_deriv ctx first es1 in
                let es2 = Inference.partial_deriv ctx first es2 in
-               let verdict, sub_hist = aux ctx ~first:first (pi1, es1) (pi2, es2) in
+               let verdict, sub_hist = aux ctx ~first (pi1, es1) (pi2, es2) in
                hist |> History.add_unfolding sub_hist;
                verdict)
       in
@@ -81,12 +93,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     (verdict, hist)
   in
   let ctx = Proofctx.make () in
-  let () =
-    let pre, _ = lhs in
-    let post, _ = rhs in
-    ctx |> Proofctx.add_precond pre;
-    ctx |> Proofctx.add_postcond post
-  in
+  let lhs, rhs = preprocess ctx lhs rhs in
   aux ctx lhs rhs
 
 let verify_entailment (Ast.Entail { lhs; rhs }) =

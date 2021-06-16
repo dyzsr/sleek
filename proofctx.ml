@@ -15,6 +15,35 @@ let clone ctx = { ctx with term_gen = ctx.term_gen }
 let current_term_gen ctx = ctx.term_gen
 let next_term ctx = next_term ctx.term_gen
 
+let replace_constants (pi, es) ctx =
+  let pi = ref pi in
+  let rec aux = function
+    | Timed (es, Const v) ->
+        let t = ctx |> next_term in
+        let cond = t =* Const v in
+        pi := cond &&* !pi;
+        Timed (aux es, t)
+    | Timed (es, t)       -> Timed (aux es, t)
+    | PCases ks           ->
+        PCases
+          (List.map
+             (function
+               | Const v, es ->
+                   let p = ctx |> next_term in
+                   let cond = p =* Const v in
+                   pi := cond &&* !pi;
+                   (p, aux es)
+               | p, es       -> (p, aux es))
+             ks)
+    | Sequence (es1, es2) -> Sequence (aux es1, aux es2)
+    | Union (es1, es2)    -> Union (aux es1, aux es2)
+    | Parallel (es1, es2) -> Parallel (aux es1, aux es2)
+    | Kleene es           -> Kleene (aux es)
+    | es                  -> es
+  in
+  let es = aux es in
+  (!pi, es)
+
 let add_entail lhs rhs ctx =
   let entails =
     (lhs, rhs)
