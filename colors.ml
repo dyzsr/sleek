@@ -4,7 +4,6 @@ let no_color =
   | Some "off" -> true
   | Some _     -> false
 
-
 let color_string s = if no_color then "" else s
 
 let reset = color_string "\027[0m"

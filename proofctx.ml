@@ -6,7 +6,7 @@ type t = {
   mutable precond : pi;
   mutable postcond : pi;
   mutable terms : term list;
-  mutable entails : (instants * instants) list;
+  mutable entails : (trace * trace) list;
 }
 
 let make () = { term_gen = ref 0; precond = True; postcond = True; terms = []; entails = [] }
@@ -15,34 +15,34 @@ let clone ctx = { ctx with term_gen = ctx.term_gen }
 let current_term_gen ctx = ctx.term_gen
 let next_term ctx = next_term ctx.term_gen
 
-let replace_constants (pi, es) ctx =
+let replace_constants (pi, tr) ctx =
   let pi = ref pi in
   let rec aux = function
-    | Timed (es, Const v) ->
+    | Timed (tr, Const v) ->
         let t = ctx |> next_term in
         let cond = t =* Const v in
         pi := cond &&* !pi;
-        Timed (aux es, t)
-    | Timed (es, t)       -> Timed (aux es, t)
+        Timed (aux tr, t)
+    | Timed (tr, t)       -> Timed (aux tr, t)
     | PCases ks           ->
         PCases
           (List.map
              (function
-               | Const v, es ->
+               | Const v, tr ->
                    let p = ctx |> next_term in
                    let cond = p =* Const v in
                    pi := cond &&* !pi;
-                   (p, aux es)
-               | p, es       -> (p, aux es))
+                   (p, aux tr)
+               | p, tr       -> (p, aux tr))
              ks)
-    | Sequence (es1, es2) -> Sequence (aux es1, aux es2)
-    | Union (es1, es2)    -> Union (aux es1, aux es2)
-    | Parallel (es1, es2) -> Parallel (aux es1, aux es2)
-    | Kleene es           -> Kleene (aux es)
-    | es                  -> es
+    | Sequence (tr1, tr2) -> Sequence (aux tr1, aux tr2)
+    | Union (tr1, tr2)    -> Union (aux tr1, aux tr2)
+    | Parallel (tr1, tr2) -> Parallel (aux tr1, aux tr2)
+    | Kleene tr           -> Kleene (aux tr)
+    | tr                  -> tr
   in
-  let es = aux es in
-  (!pi, es)
+  let tr = aux tr in
+  (!pi, tr)
 
 let add_entail lhs rhs ctx =
   let entails =
@@ -59,7 +59,7 @@ let add_entail lhs rhs ctx =
   ctx.entails <- entails
 
 let exists_entail lhs rhs ctx =
-  let isomorphic (es1, es2) (es1', es2') =
+  let isomorphic (tr1, tr2) (tr1', tr2') =
     let module Terms = Map.Make (struct
       type t = term
 
@@ -76,25 +76,25 @@ let exists_entail lhs rhs ctx =
       | Some t2', Some t1' -> t1 = t1' && t2 = t2'
       | _                  -> false
     in
-    let rec aux es1 es2 =
-      if es1 = es2 then
+    let rec aux tr1 tr2 =
+      if tr1 = tr2 then
         true
       else
-        match (es1, es2) with
+        match (tr1, tr2) with
         | Bottom, Bottom -> true
         | Empty, Empty -> true
         | Instant i, Instant j when i = j -> true
         | Await i, Await j when i = j -> true
-        | Sequence (es1, es2), Sequence (es1', es2') -> aux es1 es1' && aux es2 es2'
-        | Union (es1, es2), Union (es1', es2') -> aux es1 es1' && aux es2 es2'
-        | Parallel (es1, es2), Parallel (es1', es2') -> aux es1 es1' && aux es2 es2'
-        | Kleene es, Kleene es' -> aux es es'
-        | Timed (es, t), Timed (es', t') ->
+        | Sequence (tr1, tr2), Sequence (tr1', tr2') -> aux tr1 tr1' && aux tr2 tr2'
+        | Union (tr1, tr2), Union (tr1', tr2') -> aux tr1 tr1' && aux tr2 tr2'
+        | Parallel (tr1, tr2), Parallel (tr1', tr2') -> aux tr1 tr1' && aux tr2 tr2'
+        | Kleene tr, Kleene tr' -> aux tr tr'
+        | Timed (tr, t), Timed (tr', t') ->
             let iso = union t t' in
-            if iso then aux es es' else false
+            if iso then aux tr tr' else false
         | _ -> false
     in
-    aux es1 es1' && aux es2 es2'
+    aux tr1 tr1' && aux tr2 tr2'
   in
   List.exists (isomorphic (lhs, rhs)) ctx.entails
 
@@ -121,11 +121,11 @@ let check_constraints ctx =
 (* tests *)
 let () =
   let ctx = make () in
-  ctx |> add_entail (Parsing.parse_instants "{A}") (Parsing.parse_instants "{}");
-  assert (ctx |> exists_entail (Parsing.parse_instants "{A}") (Parsing.parse_instants "{}"));
-  ctx |> add_entail (Parsing.parse_instants "{B}") (Parsing.parse_instants "{A}");
-  ctx |> add_entail (Parsing.parse_instants "{A, B}") (Parsing.parse_instants "{B}");
-  assert (ctx |> exists_entail (Parsing.parse_instants "{B}") (Parsing.parse_instants "{}"));
-  assert (ctx |> exists_entail (Parsing.parse_instants "{A, B}") (Parsing.parse_instants "{}"));
-  assert (ctx |> exists_entail (Parsing.parse_instants "{A, B}") (Parsing.parse_instants "{A}"));
+  ctx |> add_entail (Parsing.trace "{A}") (Parsing.trace "{}");
+  assert (ctx |> exists_entail (Parsing.trace "{A}") (Parsing.trace "{}"));
+  ctx |> add_entail (Parsing.trace "{B}") (Parsing.trace "{A}");
+  ctx |> add_entail (Parsing.trace "{A, B}") (Parsing.trace "{B}");
+  assert (ctx |> exists_entail (Parsing.trace "{B}") (Parsing.trace "{}"));
+  assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{}"));
+  assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{A}"));
   ()

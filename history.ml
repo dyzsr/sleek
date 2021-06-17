@@ -2,7 +2,7 @@ open Ast_print
 
 type entry = {
   mutable first : Inference.Set.elm option;
-  mutable iterations : (string * Ast.simple_entailment) list;
+  mutable iterations : (string * Ast.entailment) list;
   mutable unfoldings : entry list;
   mutable terms : Ast.term list option;
   mutable constraints : Ast.pi option;
@@ -21,9 +21,9 @@ let make_entry () =
 
 let set_first first hist = hist.first <- Some first
 
-let add_iteration (label, es) hist =
-  (* Printf.printf "%s :: %s\n" label (Ast.show_entailment es); *)
-  hist.iterations <- (label, es) :: hist.iterations
+let add_iteration (label, tr) hist =
+  (* Printf.printf "%s :: %s\n" label (Ast.show_entailment tr); *)
+  hist.iterations <- (label, tr) :: hist.iterations
 
 let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
 
@@ -50,18 +50,18 @@ let show_entry hist ~verbose =
     in
     let show_first =
       match hist.first with
-      | None      -> id
+      | None     -> id
       | Some elm -> List.cons (print "-" (Inference.Set.show_elm elm))
     in
     let show_iterations =
       if verbose then
         List.fold_right
-          (fun (name, entailment) acc -> print name (show_simple_entailment entailment) :: acc)
+          (fun (name, entailments) acc -> print name (show_entailment entailments) :: acc)
           hist.iterations
       else
         List.cons
-          (let name, entailment = List.hd hist.iterations in
-           print name (show_simple_entailment entailment))
+          (let name, entailments = List.hd hist.iterations in
+           print name (show_entailment entailments))
     in
     let show_unfoldings =
       List.fold_right List.cons

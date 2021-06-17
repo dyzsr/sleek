@@ -1,9 +1,11 @@
-val parse_specification : string -> Ast.specification
+val specification : string -> Ast.specification
 
-val parse_entailment : string -> Ast.entailment
+val entailments : string -> Ast.entailments
 
-val parse_simple_entailment : string -> Ast.simple_entailment
+val entailment : string -> Ast.entailment
 
-val parse_effects : string -> Ast.effects
+val pitraces : string -> Ast.pitraces
 
-val parse_instants : string -> Ast.instants
+val trace : string -> Ast.trace
+
+val instant : string -> Instant.t

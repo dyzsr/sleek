@@ -19,7 +19,7 @@ type term_gen = int ref
 
 val next_term : term_gen -> term
 
-val total_time_of_es : instants -> term_gen -> term * pi
+val total_time_of_tr : trace -> term_gen -> term * pi
 
 val visit_pi : (term -> term -> unit) -> pi -> unit
 val filter_pi : (term -> term -> bool) -> pi -> pi option
@@ -27,7 +27,7 @@ val trim_pi : pi -> term list -> pi
 
 val simplify_term : term -> term
 val simplify_pi : pi -> pi
-val simplify_es : instants -> instants
-val simplify : simple_effects -> simple_effects
+val simplify_tr : trace -> trace
+val simplify : pitrace -> pitrace
 
-val amend_constraints : Ast.simple_effects -> Ast.simple_effects
+val amend_constraints : pitrace -> pitrace

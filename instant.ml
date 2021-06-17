@@ -39,7 +39,7 @@ let is_present = function
   | Present _ -> true
   | _         -> false
 
-(* Type of signals *)
+(* Type of instant *)
 type t = event list
 
 let show = function
@@ -57,16 +57,16 @@ let show = function
                 l))
       ^ "}"
 
-(* Empty signal *)
+(* Empty instant *)
 let empty = []
 
 let is_empty = function
   | [] -> true
   | _  -> false
 
-let from name = [ present name ]
+let singleton name = [ present name ]
 
-(* Make new signal from name list *)
+(* Make new instant singleton name list *)
 let make lst = List.sort_uniq compare lst
 
 let initUndef lst = List.map (fun a -> undefine a) lst
@@ -76,50 +76,50 @@ let rec setPresent str lst =
   | []             -> Some []
   | Absent s :: xs -> (
       if String.compare s str == 0 then
-        None (* signal status controdiction *)
+        None (* instant status controdiction *)
       else
         match setPresent str xs with
         | None      -> None
-        | Some rest -> Some (Absent s :: rest) (* signal status controdiction *))
+        | Some rest -> Some (Absent s :: rest) (* instant status controdiction *))
   | Undef s :: xs  -> (
       if String.compare s str == 0 then
         match setPresent str xs with
         | None      -> None
-        | Some rest -> Some (Present s :: rest) (* signal status controdiction *)
+        | Some rest -> Some (Present s :: rest) (* instant status controdiction *)
       else
         match setPresent str xs with
         | None      -> None
-        | Some rest -> Some (Undef s :: rest) (* signal status controdiction *))
+        | Some rest -> Some (Undef s :: rest) (* instant status controdiction *))
   | x :: xs        -> (
       match setPresent str xs with
       | None      -> None
       | Some rest -> Some (x :: rest))
-(* signal status controdiction *)
+(* instant status controdiction *)
 
 let rec setAbsent str lst =
   match lst with
   | []              -> Some []
   | Present s :: xs -> (
       if String.compare s str == 0 then
-        None (* signal status controdiction *)
+        None (* instant status controdiction *)
       else
         match setAbsent str xs with
         | None      -> None
-        | Some rest -> Some (Present s :: rest) (* signal status controdiction *))
+        | Some rest -> Some (Present s :: rest) (* instant status controdiction *))
   | Undef s :: xs   -> (
       if String.compare s str == 0 then
         match setAbsent str xs with
         | None      -> None
-        | Some rest -> Some (Absent s :: rest) (* signal status controdiction *)
+        | Some rest -> Some (Absent s :: rest) (* instant status controdiction *)
       else
         match setAbsent str xs with
         | None      -> None
-        | Some rest -> Some (Undef s :: rest) (* signal status controdiction *))
+        | Some rest -> Some (Undef s :: rest) (* instant status controdiction *))
   | x :: xs         -> (
       match setAbsent str xs with
       | None      -> None
       | Some rest -> Some (x :: rest))
-(* signal status controdiction *)
+(* instant status controdiction *)
 
 let rec delete_shown_sig env _sig =
   match env with
@@ -143,7 +143,7 @@ let rec add_UndefSigs env ins =
       let newEnv = delete_shown_sig env str in
       Undef str :: add_UndefSigs newEnv xs
 
-(* Merge signals `a` and `b` into a new one *)
+(* Merge instant `a` and `b` into a new one *)
 let merge a b = List.sort_uniq compare (a @ b)
 
 (* Is `b` included in `a`? *)

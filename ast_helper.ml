@@ -40,20 +40,20 @@ let op_of_atomic = function
   | Gt -> ( > )
   | Ge -> ( >= )
 
-let total_time_of_es es gen =
+let total_time_of_tr tr gen =
   let rec aux = function
-    | Sequence (es1, es2) ->
-        let t1, cond1 = aux es1 in
-        let t2, cond2 = aux es2 in
+    | Sequence (tr1, tr2) ->
+        let t1, cond1 = aux tr1 in
+        let t2, cond2 = aux tr2 in
         (t1 +* t2, cond1 &&* cond2)
-    | Union (es1, es2)    ->
-        let t1, cond1 = aux es1 in
-        let t2, cond2 = aux es2 in
+    | Union (tr1, tr2)    ->
+        let t1, cond1 = aux tr1 in
+        let t2, cond2 = aux tr2 in
         let t = gen |> next_term in
         (t, cond1 &&* cond2 &&* (t =* t1 ||* (t =* t2)))
-    | Parallel (es1, es2) ->
-        let t1, cond1 = aux es1 in
-        let t2, cond2 = aux es2 in
+    | Parallel (tr1, tr2) ->
+        let t1, cond1 = aux tr1 in
+        let t2, cond2 = aux tr2 in
         let t = gen |> next_term in
         (t, cond1 &&* cond2 &&* (t =* t1 &&* (t =* t2)))
     | Timed (_, t)        -> (t, True)
@@ -61,15 +61,15 @@ let total_time_of_es es gen =
         let t = gen |> next_term in
         let cond =
           List.fold_left
-            (fun acc (_, es) ->
-              let t', cond = aux es in
+            (fun acc (_, tr) ->
+              let t', cond = aux tr in
               acc &&* cond &&* (t =* t'))
             True ks
         in
         (t, cond)
     | _                   -> (Const 0., True)
   in
-  let total, extra_conds = aux es in
+  let total, extra_conds = aux tr in
   (total, extra_conds)
 
 let rec vars_of_term acc = function
@@ -232,71 +232,71 @@ let rec simplify_pi : pi -> pi = function
         Imply (pi1, simplify_pi pi2)
   | pi -> pi
 
-let rec simplify_es : instants -> instants = function
+let rec simplify_tr : trace -> trace = function
   (* reduction *)
-  | Union (es, Bottom) -> es
-  | Union (Bottom, es) -> es
-  | Union (es, es') when es = es' -> es
-  | Sequence (Empty, es) -> es
-  | Sequence (es, Empty) -> es
+  | Union (tr, Bottom) -> tr
+  | Union (Bottom, tr) -> tr
+  | Union (tr, tr') when tr = tr' -> tr
+  | Sequence (Empty, tr) -> tr
+  | Sequence (tr, Empty) -> tr
   | Sequence (Bottom, _) -> Bottom
   | Sequence (_, Bottom) -> Bottom
-  | Parallel (es, Empty) -> es
-  | Parallel (Empty, es) -> es
+  | Parallel (tr, Empty) -> tr
+  | Parallel (Empty, tr) -> tr
   | Parallel (_, Bottom) -> Bottom
   | Parallel (Bottom, _) -> Bottom
-  | Parallel (es, es') when es = es' -> es
-  | Union (Union (es1, es2), es3) -> Union (es1, Union (es2, es3))
-  | Kleene (Kleene esin) -> simplify_es (Kleene esin)
+  | Parallel (tr, tr') when tr = tr' -> tr
+  | Union (Union (tr1, tr2), tr3) -> Union (tr1, Union (tr2, tr3))
+  | Kleene (Kleene esin) -> simplify_tr (Kleene esin)
   | Kleene Bottom -> Empty
   | Kleene Empty -> Empty
-  | Kleene (Union (Empty, es)) -> Kleene es
-  | Sequence (Sequence (es1, es2), es3) -> Sequence (es1, Sequence (es2, es3))
+  | Kleene (Union (Empty, tr)) -> Kleene tr
+  | Sequence (Sequence (tr1, tr2), tr3) -> Sequence (tr1, Sequence (tr2, tr3))
   (* simplify recursively *)
-  | Sequence (es1, es2) ->
-      let es1' = simplify_es es1 in
-      if es1' <> es1 then
-        Sequence (es1', es2)
+  | Sequence (tr1, tr2) ->
+      let tr1' = simplify_tr tr1 in
+      if tr1' <> tr1 then
+        Sequence (tr1', tr2)
       else
-        Sequence (es1, simplify_es es2)
-  | Union (es1, es2) ->
-      let es1' = simplify_es es1 in
-      if es1' <> es1 then
-        Union (es1', es2)
+        Sequence (tr1, simplify_tr tr2)
+  | Union (tr1, tr2) ->
+      let tr1' = simplify_tr tr1 in
+      if tr1' <> tr1 then
+        Union (tr1', tr2)
       else
-        Union (es1, simplify_es es2)
-  | Parallel (es1, es2) ->
-      let es1' = simplify_es es1 in
-      if es1' <> es1 then
-        Parallel (es1', es2)
+        Union (tr1, simplify_tr tr2)
+  | Parallel (tr1, tr2) ->
+      let tr1' = simplify_tr tr1 in
+      if tr1' <> tr1 then
+        Parallel (tr1', tr2)
       else
-        Parallel (es1, simplify_es es2)
-  | Kleene es -> Kleene (simplify_es es)
-  | Timed (es, t) -> Timed (simplify_es es, t)
-  | es -> es
+        Parallel (tr1, simplify_tr tr2)
+  | Kleene tr -> Kleene (simplify_tr tr)
+  | Timed (tr, t) -> Timed (simplify_tr tr, t)
+  | tr -> tr
 
 let simplify = function
   | False, _  -> (False, Bottom)
   | _, Bottom -> (False, Bottom)
-  | pi, es    ->
+  | pi, tr    ->
       let pi' = simplify_pi pi in
       if pi' <> pi then
-        (pi', es)
+        (pi', tr)
       else
-        (pi, simplify_es es)
+        (pi, simplify_tr tr)
 
-let amend_constraints (pi, es) =
+let amend_constraints (pi, tr) =
   let pi = ref pi in
   let rec aux = function
     | PCases ks           ->
-        let total_p = List.fold_left (fun acc (p, es) -> aux es; p +* acc) (Const 0.) ks in
+        let total_p = List.fold_left (fun acc (p, tr) -> aux tr; p +* acc) (Const 0.) ks in
         let cond = total_p =* Const 1. in
         pi := cond &&* !pi
-    | Sequence (es1, es2) -> aux es1; aux es2
-    | Union (es1, es2)    -> aux es1; aux es2
-    | Parallel (es1, es2) -> aux es1; aux es2
-    | Kleene es           -> aux es
-    | Timed (es, _)       -> aux es
+    | Sequence (tr1, tr2) -> aux tr1; aux tr2
+    | Union (tr1, tr2)    -> aux tr1; aux tr2
+    | Parallel (tr1, tr2) -> aux tr1; aux tr2
+    | Kleene tr           -> aux tr
+    | Timed (tr, _)       -> aux tr
     | _                   -> ()
   in
-  aux es; (!pi, es)
+  aux tr; (!pi, tr)

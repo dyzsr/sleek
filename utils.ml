@@ -1,12 +1,12 @@
-let fixpoint ~f ?(fn_iter = fun _ -> ()) ?(fn_stop = fun _ -> ()) init =
-  let rec iter cur =
+let fixpoint ~f ?(iter = fun _ -> ()) ?(stop = fun _ -> ()) init =
+  let rec loop cur =
     let next = f cur in
     if cur = next then (
-      fn_stop cur; cur)
+      stop cur; cur)
     else (
-      fn_iter cur; iter next)
+      iter cur; loop next)
   in
-  iter init
+  loop init
 
 let opt_value = Option.get
 let opt_iter ~f = Option.iter f

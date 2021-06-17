@@ -1,6 +1,6 @@
-val verify_simple_entailment : Ast.simple_entailment -> bool * History.entry
+val verify_entailment : Ast.entailment -> bool * History.entry
 
-val verify_entailment : Ast.entailment -> bool * History.t
+val verify_entailments : Ast.entailments -> bool * History.t
 
 val verify_specification : Ast.specification -> bool * string * History.t
 

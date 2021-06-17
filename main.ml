@@ -158,7 +158,7 @@ let tests =
     "True && {A}.{B}.{C}.B?.{D}  |-  True && {A}.{B}.(B? // {C}).{D} : true";
     "True && ({A} + {B}) // {C}  |-  True && ({A} // {C}) + ({B} // {C}) : true";
     "True && A? // B?  |-  True && A?.B? + {}*.{A, B} +  B?.A? : true";
-    (* Timed effects *)
+    (* Timed pitraces *)
     "t > 1 && {A} # t  |-  t > 3 && {A} # t : false";
     "t > 1 && {A} # t  |-  True && {A} : true";
     "t < 1 && {A} # t  |-  t < 2 && {A} # t : true";
@@ -309,7 +309,7 @@ let tests =
 let () =
   tests
   |> List.iteri (fun no str ->
-         let case = Sleek.parse_specification str in
+         let case = Sleek.specification str in
          let correct, verdict, history = Sleek.verify_specification case in
          Sleek.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history |> print_endline;
          assert correct)

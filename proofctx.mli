@@ -7,10 +7,10 @@ val clone : t -> t
 val current_term_gen : t -> Ast_helper.term_gen
 val next_term : t -> Ast.term
 
-val replace_constants : Ast.simple_effects -> t -> Ast.simple_effects
+val replace_constants : Ast.pitrace -> t -> Ast.pitrace
 
-val add_entail : Ast.instants -> Ast.instants -> t -> unit
-val exists_entail : Ast.instants -> Ast.instants -> t -> bool
+val add_entail : Ast.trace -> Ast.trace -> t -> unit
+val exists_entail : Ast.trace -> Ast.trace -> t -> bool
 
 val add_precond : Ast.pi -> t -> unit
 val add_postcond : Ast.pi -> t -> unit

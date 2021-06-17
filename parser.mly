@@ -36,14 +36,18 @@
 %token <float> NUM      "num"
 %token <string> IDENT   "ident"
 
-%start specification only_entailment
-%start only_effects only_instants
-%start simple_entailment
+%start specification
+%start only_entailments
+%start only_entailment
+%start only_pitraces
+%start only_trace
+%start only_instant
 %type <Ast.specification> specification
+%type <Ast.entailments> only_entailments
 %type <Ast.entailment> only_entailment
-%type <Ast.effects> only_effects
-%type <Ast.instants> only_instants
-%type <Ast.simple_entailment> simple_entailment
+%type <Ast.pitraces> only_pitraces
+%type <Ast.trace> only_trace
+%type <Instant.t> only_instant
 
 %right "//"
 %nonassoc "#"
@@ -57,95 +61,98 @@
 %%
 
 specification:
-    e=entailment ":" a=assertion "eof"  { Ast.Spec (e, a) }
-  | e=entailment "::" a=assertion "eof" { Ast.Spec (e, a) }
+    e=entailments ":" a=assertion "eof"   { Ast.Spec (e, a) }
+  | e=entailments "::" a=assertion "eof"  { Ast.Spec (e, a) }
+
+only_entailments:
+    e=entailments "eof"                   { e }
 
 only_entailment:
-    e=entailment "eof"  { e }
+    lhs=pitrace "|-" rhs=pitrace "eof"    { (lhs, rhs) }
 
-only_effects:
-    l=effects "eof"     { l }
+only_pitraces:
+    l=pitraces "eof"                      { l }
 
-only_instants:
-    es=instants "eof"   { es }
+only_trace:
+    tr=trace "eof"                        { tr }
 
-simple_entailment:
-    lhs=simple_effects "|-" rhs=simple_effects "eof"  { Ast.SimpleEntail {lhs; rhs} }
+only_instant:
+    i=instant "eof"                       { i }
 
 assertion:
-    "true"              { true }
-  | "false"             { false }
+    "true"                                { true }
+  | "false"                               { false }
 
-entailment:
-    lhs=effects "|-" rhs=effects      { Ast.Entail {lhs; rhs} }
+entailments:
+    lhs=pitraces "|-" rhs=pitraces        { (lhs, rhs) }
 
-effects:
-    e=simple_effects                  { [e] }
-  | e=simple_effects "||" l=effects   { e :: l }
+pitraces:
+    e=pitrace                             { [e] }
+  | e=pitrace "||" l=pitraces             { e :: l }
 
-simple_effects:
-    p=pi "&&" es=instants             { (p, es) }
-  | p=pi ":"  es=instants             { (p, es) }
+pitrace:
+    p=pi "&&" tr=trace                    { (p, tr) }
+  | p=pi ":"  tr=trace                    { (p, tr) }
 
 pi:
-    "(" ")"                           { Ast.True }
-  | "True"                            { Ast.True }
-  | "False"                           { Ast.False }
-  | pi=cmp                            { pi }
-  | "~" "(" pi=paren_pi ")"           { Ast.Not pi }
-  | "(" pi=paren_pi ")"               { pi }
+    "(" ")"                               { Ast.True }
+  | "True"                                { Ast.True }
+  | "False"                               { Ast.False }
+  | pi=cmp                                { pi }
+  | "~" "(" pi=paren_pi ")"               { Ast.Not pi }
+  | "(" pi=paren_pi ")"                   { pi }
 
 paren_pi:
-  | pi=pi                             { pi }
-  | pi1=paren_pi "&&" pi2=paren_pi    { Ast_helper.(pi1 &&* pi2) }
-  | pi1=paren_pi "||" pi2=paren_pi    { Ast_helper.(pi1 ||* pi2) }
-  | pi1=paren_pi "->" pi2=paren_pi    { Ast_helper.(pi1 =>* pi2) }
+  | pi=pi                                 { pi }
+  | pi1=paren_pi "&&" pi2=paren_pi        { Ast_helper.(pi1 &&* pi2) }
+  | pi1=paren_pi "||" pi2=paren_pi        { Ast_helper.(pi1 ||* pi2) }
+  | pi1=paren_pi "->" pi2=paren_pi        { Ast_helper.(pi1 =>* pi2) }
 
 cmp:
-    t1=term "=" t2=term               { Ast_helper.(t1 =* t2) }
-  | t1=term "<" t2=term               { Ast_helper.(t1 <* t2) }
-  | t1=term "<=" t2=term              { Ast_helper.(t1 <=* t2) }
-  | t1=term ">" t2=term               { Ast_helper.(t1 >* t2) }
-  | t1=term ">=" t2=term              { Ast_helper.(t1 >=* t2) }
+    t1=term "=" t2=term                   { Ast_helper.(t1 =* t2) }
+  | t1=term "<" t2=term                   { Ast_helper.(t1 <* t2) }
+  | t1=term "<=" t2=term                  { Ast_helper.(t1 <=* t2) }
+  | t1=term ">" t2=term                   { Ast_helper.(t1 >* t2) }
+  | t1=term ">=" t2=term                  { Ast_helper.(t1 >=* t2) }
 
 term:
-    n="num"                           { Ast.Const n }
-  | v="ident"                         { Ast.Var v }
-  | t1=term "+" t2=term               { Ast_helper.(t1 +* t2) }
-  | t1=term "-" t2=term               { Ast_helper.(t1 -* t2) }
+    n="num"                               { Ast.Const n }
+  | v="ident"                             { Ast.Var v }
+  | t1=term "+" t2=term                   { Ast_helper.(t1 +* t2) }
+  | t1=term "-" t2=term                   { Ast_helper.(t1 -* t2) }
 
-instants:
-    "_|_"                             { Ast.Bottom }
-  | "empty"                           { Ast.Empty }
-  | i=instant                         { Ast.Instant i }
-  | e=waiting                         { Ast.Await e }
-  | es1=instants "+" es2=instants     { Ast.Union (es1, es2) }
-  | es1=instants "."  es2=instants    { Ast.Sequence (es1, es2) }
-  | es1=instants "//" es2=instants    { Ast.Parallel (es1, es2) }
-  | "[" ks=pcases "]"                 { Ast.PCases ks }
-  | es=instants "^*"                  { Ast.Kleene (es) }
-  | es=instants "#" t=term            { Ast.Timed (es, t) }
-  | "(" es=instants ")"               { es }
+trace:
+    "_|_"                                 { Ast.Bottom }
+  | "empty"                               { Ast.Empty }
+  | i=instant                             { Ast.Instant i }
+  | e=waiting                             { Ast.Await e }
+  | tr1=trace "+" tr2=trace               { Ast.Union (tr1, tr2) }
+  | tr1=trace "."  tr2=trace              { Ast.Sequence (tr1, tr2) }
+  | tr1=trace "//" tr2=trace              { Ast.Parallel (tr1, tr2) }
+  | "[" ks=pcases "]"                     { Ast.PCases ks }
+  | tr=trace "^*"                         { Ast.Kleene (tr) }
+  | tr=trace "#" t=term                   { Ast.Timed (tr, t) }
+  | "(" tr=trace ")"                      { tr }
 
 pcases:
-    k=pcase                           { [ k ] }
-  | k=pcase "|" ks=pcases             { k :: ks }
+    k=pcase                               { [ k ] }
+  | k=pcase "|" ks=pcases                 { k :: ks }
 
 pcase:
-    t=term "->" es=instants           { (t, es) }
+    t=term "->" tr=trace                  { (t, tr) }
 
 instant:
-    "{" "}"                           { Signals.empty }
-  | "{" l=event_list "}"              { Signals.make l  }
+    "{" "}"                               { Instant.empty }
+  | "{" l=event_list "}"                  { Instant.make l  }
 
 event_list:
-  | e="ident"                         { [ Signals.present e ] }
-  | "!" e="ident"                     { [ Signals.absent e ] }
-  | e="ident" "," l=event_list        { Signals.present e :: l }
-  | "!" e="ident" "," l=event_list    { Signals.absent e :: l }
+  | e="ident"                             { [ Instant.present e ] }
+  | "!" e="ident"                         { [ Instant.absent e ] }
+  | e="ident" "," l=event_list            { Instant.present e :: l }
+  | "!" e="ident" "," l=event_list        { Instant.absent e :: l }
 
 
 waiting:
-    e="ident" "?"                     { Signals.present e }
+    e="ident" "?"                         { Instant.present e }
 
 %%

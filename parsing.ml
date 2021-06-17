@@ -19,12 +19,14 @@ let parse parser text =
     Printf.eprintf "%s%s%s\n" Colors.red error Colors.reset;
     failwith "Syntax error"
 
-let parse_specification text = parse Parser.specification text
+let specification text = parse Parser.specification text
 
-let parse_entailment text = parse Parser.only_entailment text
+let entailments text = parse Parser.only_entailments text
 
-let parse_simple_entailment text = parse Parser.simple_entailment text
+let entailment text = parse Parser.only_entailment text
 
-let parse_effects text = parse Parser.only_effects text
+let pitraces text = parse Parser.only_pitraces text
 
-let parse_instants text = parse Parser.only_instants text
+let trace text = parse Parser.only_trace text
+
+let instant text = parse Parser.only_instant text

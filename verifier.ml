@@ -1,6 +1,6 @@
 open Ast_print
 
-let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
+let verify_entailment (lhs, rhs) =
   let preprocess ctx lhs rhs =
     let lhs = ctx |> Proofctx.replace_constants lhs in
     let rhs = ctx |> Proofctx.replace_constants rhs in
@@ -16,37 +16,35 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
   let rec aux ctx ?first lhs rhs =
     let hist = History.make_entry () in
     Utils.opt_iter ~f:(fun x -> hist |> History.set_first x) first;
-    let bot_lhs (_, es1) = Inference.is_bot es1
-    and bot_rhs (_, es2) = Inference.is_bot es2
-    and disprove (_, es1) (_, es2) = Inference.nullable es1 && not (Inference.nullable es2)
-    and reoccur ctx (_, es1) (_, es2) = Proofctx.exists_entail es1 es2 ctx
-    and unfold ctx (pi1, es1) (pi2, es2) =
-      ctx |> Proofctx.add_entail es1 es2;
-      let firsts = Inference.first ctx es1 in
+    let bot_lhs (_, tr1) = Inference.is_bot tr1
+    and bot_rhs (_, tr2) = Inference.is_bot tr2
+    and disprove (_, tr1) (_, tr2) = Inference.nullable tr1 && not (Inference.nullable tr2)
+    and reoccur ctx (_, tr1) (_, tr2) = Proofctx.exists_entail tr1 tr2 ctx
+    and unfold ctx (pi1, tr1) (pi2, tr2) =
+      ctx |> Proofctx.add_entail tr1 tr2;
+      let firsts = Inference.first ctx tr1 in
       let terminate = Inference.Set.is_empty firsts in
       let verdict =
         firsts
         |> Inference.Set.for_all (fun first ->
                let ctx = Proofctx.clone ctx in
-               let es1 = Inference.partial_deriv ctx first es1 in
-               let es2 = Inference.partial_deriv ctx first es2 in
-               let verdict, sub_hist = aux ctx ~first (pi1, es1) (pi2, es2) in
+               let tr1 = Inference.partial_deriv ctx first tr1 in
+               let tr2 = Inference.partial_deriv ctx first tr2 in
+               let verdict, sub_hist = aux ctx ~first (pi1, tr1) (pi2, tr2) in
                hist |> History.add_unfolding sub_hist;
                verdict)
       in
       (verdict, terminate)
     and normalize lhs rhs =
       let lhs =
-        Utils.fixpoint ~f:Ast_helper.simplify
-          ~fn_iter:(fun es ->
-            hist |> History.add_iteration ("NORM-LHS", SimpleEntail { lhs = es; rhs }))
-          lhs
+        lhs
+        |> Utils.fixpoint ~f:Ast_helper.simplify ~iter:(fun tr ->
+               hist |> History.add_iteration ("NORM-LHS", (tr, rhs)))
       in
       let rhs =
-        Utils.fixpoint ~f:Ast_helper.simplify
-          ~fn_iter:(fun es ->
-            hist |> History.add_iteration ("NORM-RHS", SimpleEntail { lhs; rhs = es }))
-          rhs
+        rhs
+        |> Utils.fixpoint ~f:Ast_helper.simplify ~iter:(fun tr ->
+               hist |> History.add_iteration ("NORM-RHS", (lhs, tr)))
       in
       (lhs, rhs)
     in
@@ -65,25 +63,25 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     let lhs, rhs = normalize lhs rhs in
     let verdict =
       if bot_lhs lhs then (
-        hist |> History.add_iteration ("Bot-LHS", SimpleEntail { lhs; rhs });
+        hist |> History.add_iteration ("Bot-LHS", (lhs, rhs));
         check true)
       else if bot_rhs rhs then (
-        hist |> History.add_iteration ("Bot-RHS", SimpleEntail { lhs; rhs });
+        hist |> History.add_iteration ("Bot-RHS", (lhs, rhs));
         check false)
       else if disprove lhs rhs then (
-        hist |> History.add_iteration ("DISPROVE", SimpleEntail { lhs; rhs });
+        hist |> History.add_iteration ("DISPROVE", (lhs, rhs));
         check false)
       else if reoccur ctx lhs rhs then (
-        hist |> History.add_iteration ("REOCCUR", SimpleEntail { lhs; rhs });
-        let _, es1 = lhs in
-        let _, es2 = rhs in
+        hist |> History.add_iteration ("REOCCUR", (lhs, rhs));
+        let _, tr1 = lhs in
+        let _, tr2 = rhs in
         let gen = ctx |> Proofctx.current_term_gen in
-        let t1, cond1 = Ast_helper.total_time_of_es es1 gen in
-        let t2, cond2 = Ast_helper.total_time_of_es es2 gen in
+        let t1, cond1 = Ast_helper.total_time_of_tr tr1 gen in
+        let t2, cond2 = Ast_helper.total_time_of_tr tr2 gen in
         ctx |> Proofctx.add_precond Ast_helper.(t1 =* t2 &&* cond1 &&* cond2);
         check true)
       else (
-        hist |> History.add_iteration ("UNFOLD", SimpleEntail { lhs; rhs });
+        hist |> History.add_iteration ("UNFOLD", (lhs, rhs));
         let verdict, terminate = unfold ctx lhs rhs in
         if verdict && terminate then
           check true
@@ -96,7 +94,7 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
   let lhs, rhs = preprocess ctx lhs rhs in
   aux ctx lhs rhs
 
-let verify_entailment (Ast.Entail { lhs; rhs }) =
+let verify_entailments (lhs, rhs) =
   let verdict, entriess =
     List.fold_left
       (fun (acc_verdict, acc_history) lhs ->
@@ -109,7 +107,7 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
                 if acc2_verdict then
                   (true, acc2_history)
                 else
-                  let verdict, entry = verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) in
+                  let verdict, entry = verify_entailment (lhs, rhs) in
                   (verdict, entry :: acc2_history))
               (false, []) rhs
           in
@@ -118,8 +116,8 @@ let verify_entailment (Ast.Entail { lhs; rhs }) =
   in
   (verdict, History.from_entries (List.rev entriess))
 
-let verify_specification (Ast.Spec (entailment, assertion)) =
-  let verdict, history = verify_entailment entailment in
+let verify_specification (Ast.Spec (entailments, assertion)) =
+  let verdict, history = verify_entailments entailments in
   if verdict == assertion then
     (true, Colors.green ^ "Correct" ^ Colors.reset, history)
   else

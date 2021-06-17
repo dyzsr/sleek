@@ -8,10 +8,10 @@ module Set : sig
   val for_all : (elm -> bool) -> t -> bool
 end
 
-val is_bot : Ast.instants -> bool
+val is_bot : Ast.trace -> bool
 
-val nullable : Ast.instants -> bool
+val nullable : Ast.trace -> bool
 
-val first : Proofctx.t -> Ast.instants -> Set.t
+val first : Proofctx.t -> Ast.trace -> Set.t
 
-val partial_deriv : Proofctx.t -> Set.elm -> Ast.instants -> Ast.instants
+val partial_deriv : Proofctx.t -> Set.elm -> Ast.trace -> Ast.trace

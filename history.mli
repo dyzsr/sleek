@@ -6,7 +6,7 @@ val make_entry : unit -> entry
 
 val set_first : Inference.Set.elm -> entry -> unit
 
-val add_iteration : string * Ast.simple_entailment -> entry -> unit
+val add_iteration : string * Ast.entailment -> entry -> unit
 
 val add_unfolding : entry -> entry -> unit
 

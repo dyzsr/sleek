@@ -48,48 +48,45 @@ let rec show_pi_with_prec lprec rprec = function
 
 let show_pi p = Colors.cyan ^ show_pi_with_prec 0 0 p ^ Colors.reset
 
-let rec show_instants_with_prec lprec rprec = function
+let rec show_trace_with_prec lprec rprec = function
   | Bottom              -> "⏊ "
   | Empty               -> "𝝐"
-  | Instant i           -> Signals.show i
-  | Await e             -> Signals.show_event e ^ "?"
-  | Sequence (es1, es2) ->
-      Printf.sprintf "%s·%s" (show_instants_with_prec 0 30 es1) (show_instants_with_prec 30 0 es2)
+  | Instant i           -> Instant.show i
+  | Await e             -> Instant.show_event e ^ "?"
+  | Sequence (tr1, tr2) ->
+      Printf.sprintf "%s·%s" (show_trace_with_prec 0 30 tr1) (show_trace_with_prec 30 0 tr2)
       |> if lprec > 30 || rprec >= 30 then enclose else nothing
-  | Union (es1, es2)    ->
-      Printf.sprintf "%s + %s" (show_instants_with_prec 0 20 es1) (show_instants_with_prec 20 0 es2)
+  | Union (tr1, tr2)    ->
+      Printf.sprintf "%s + %s" (show_trace_with_prec 0 20 tr1) (show_trace_with_prec 20 0 tr2)
       |> if lprec > 20 || rprec >= 20 then enclose else nothing
-  | Parallel (es1, es2) ->
-      Printf.sprintf "%s ║ %s"
-        (show_instants_with_prec 0 10 es1)
-        (show_instants_with_prec 10 0 es2)
+  | Parallel (tr1, tr2) ->
+      Printf.sprintf "%s ║ %s" (show_trace_with_prec 0 10 tr1) (show_trace_with_prec 10 0 tr2)
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
-  | Kleene es           ->
-      Printf.sprintf "%s﹡" (show_instants_with_prec 0 40 es)
+  | Kleene tr           ->
+      Printf.sprintf "%s﹡" (show_trace_with_prec 0 40 tr)
       |> if rprec >= 40 then enclose else nothing
-  | Timed (es, term)    ->
-      Printf.sprintf "%s # %s" (show_instants_with_prec 0 20 es) (show_term term)
+  | Timed (tr, term)    ->
+      Printf.sprintf "%s # %s" (show_trace_with_prec 0 20 tr) (show_term term)
       |> if lprec >= 20 || rprec >= 20 then enclose else nothing
   | PCases ks           ->
-      let show_case (p, es) =
-        Printf.sprintf "%s → %s" (show_term p) (show_instants_with_prec 0 0 es)
+      let show_case (p, tr) =
+        Printf.sprintf "%s → %s" (show_term p) (show_trace_with_prec 0 0 tr)
       in
       List.map show_case ks |> String.concat " | " |> fun x -> "[" ^ x ^ "]"
 
-let show_instants es = Colors.cyan ^ show_instants_with_prec 0 0 es ^ Colors.reset
+let show_trace tr = Colors.cyan ^ show_trace_with_prec 0 0 tr ^ Colors.reset
 
-let show_simple_effects (pi, instants) =
-  Printf.sprintf "%s: %s" (show_pi_with_prec 0 99 pi) (show_instants instants)
+let show_pitrace (pi, trace) =
+  Printf.sprintf "%s: %s" (show_pi_with_prec 0 99 pi) (show_trace trace)
 
-let show_effects l =
-  let strs = List.map show_simple_effects l in
+let show_pitraces l =
+  let strs = List.map show_pitrace l in
   String.concat (Colors.bold ^ "  ⋁  " ^ Colors.no_bold) strs
 
-let show_simple_entailment (SimpleEntail { lhs; rhs }) =
-  Printf.sprintf "%s  ⤇  %s" (show_simple_effects lhs) (show_simple_effects rhs)
+let show_entailment (lhs, rhs) = Printf.sprintf "%s  ⤇  %s" (show_pitrace lhs) (show_pitrace rhs)
 
-let show_entailment (Entail { lhs; rhs }) =
-  Printf.sprintf "%s  ⤇  %s" (show_effects lhs) (show_effects rhs)
+let show_entailments (lhs, rhs) =
+  Printf.sprintf "%s  ⤇  %s" (show_pitraces lhs) (show_pitraces rhs)
 
-let show_specification (Spec (entailment, assertion)) =
-  Printf.sprintf "%s %s:: %B%s" (show_entailment entailment) Colors.magenta assertion Colors.reset
+let show_specification (Spec (entailments, assertion)) =
+  Printf.sprintf "%s %s:: %B%s" (show_entailments entailments) Colors.magenta assertion Colors.reset

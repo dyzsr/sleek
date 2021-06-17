@@ -15,7 +15,7 @@
   ast
   ast_helper
   ast_print
-  signals
+  instant
   inference
   proofctx
   checker

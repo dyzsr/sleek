@@ -23,32 +23,22 @@ type pi =
   | Imply  of pi * pi
   | Not    of pi
 
-type instants =
+type trace =
   | Bottom
   | Empty
-  | Instant  of Signals.t
-  | Await    of Signals.event
-  | Sequence of instants * instants
-  | Union    of instants * instants
-  | Parallel of instants * instants
-  | Kleene   of instants
-  | Timed    of instants * term
-  | PCases   of (term * instants) list
+  | Instant  of Instant.t
+  | Await    of Instant.event
+  | Sequence of trace * trace
+  | Union    of trace * trace
+  | Parallel of trace * trace
+  | Kleene   of trace
+  | Timed    of trace * term
+  | PCases   of (term * trace) list
 
-type simple_effects = pi * instants
+type pitrace = pi * trace
+type pitraces = pitrace list
 
-type effects = simple_effects list
+type entailment = pitrace * pitrace
+type entailments = pitraces * pitraces
 
-type simple_entailment =
-  | SimpleEntail of {
-      lhs : simple_effects;
-      rhs : simple_effects;
-    }
-
-type entailment =
-  | Entail of {
-      lhs : effects;
-      rhs : effects;
-    }
-
-type specification = Spec of entailment * bool
+type specification = Spec of entailments * bool

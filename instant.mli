@@ -11,7 +11,7 @@ val absent : string -> event
 
 val is_present : event -> bool
 
-(* Type of signals *)
+(* Type of instant *)
 type t
 
 val isEventExist : event -> t -> bool
@@ -22,7 +22,9 @@ val empty : t
 
 val is_empty : t -> bool
 
-val from : string -> t
+val singleton : string -> t
+
+val make : event list -> t
 
 val initUndef : string list -> t
 
@@ -33,8 +35,6 @@ val setPresent : string -> t -> t option
 val controdicts : t -> bool
 
 val add_UndefSigs : string list -> t -> t
-
-val make : event list -> t
 
 val merge : t -> t -> t
 

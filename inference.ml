@@ -5,7 +5,7 @@ module Set = struct
   include List
 
   type base_elm = {
-    i : Signals.t;
+    i : Instant.t;
     t : Ast.term option;
   }
 
@@ -15,11 +15,7 @@ module Set = struct
 
   let show_elm = function
     | BaseElm { i; t } ->
-        Colors.magenta
-        (* ^ (match p with
-           | Some p -> Printf.sprintf "%s %s→%s " (show_term p) Colors.yellow Colors.magenta
-           | None   -> "") *)
-        ^ Signals.show i
+        Colors.magenta ^ Instant.show i
         ^ (match t with
           | Some t -> Printf.sprintf " %s#%s %s" Colors.yellow Colors.magenta (show_term t)
           | None   -> "")
@@ -31,7 +27,7 @@ module Set = struct
                (fun (p, { i; t }) ->
                  Colors.magenta
                  ^ Printf.sprintf "%s %s→%s " (show_term p) Colors.yellow Colors.magenta
-                 ^ Signals.show i
+                 ^ Instant.show i
                  ^ (match t with
                    | Some t -> Printf.sprintf " %s#%s %s" Colors.yellow Colors.magenta (show_term t)
                    | None   -> "")
@@ -42,7 +38,7 @@ module Set = struct
   type t = elm list
   let empty = []
   let is_empty s = List.length s = 0
-  let from ?t i = [ BaseElm { i; t } ]
+  let singleton ?t i = [ BaseElm { i; t } ]
   let union a b = a @ b |> List.sort_uniq Stdlib.compare
   let zip ctx a b =
     a
@@ -53,7 +49,7 @@ module Set = struct
              |> List.map (fun elm2 ->
                     match (elm1, elm2) with
                     | BaseElm { i = i1; t = t1 }, BaseElm { i = i2; t = t2 } ->
-                        let i = Signals.merge i1 i2 in
+                        let i = Instant.merge i1 i2 in
                         let t = Utils.opt_map2 ~ab:(fun _ _ -> ctx |> Proofctx.next_term) t1 t2 in
                         BaseElm { i; t }
                     | _ -> failwith "not implemented")))
@@ -63,22 +59,23 @@ module Set = struct
   let () =
     assert (
       let ctx = Proofctx.make () in
-      zip ctx (from (Signals.from "A")) (from (Signals.from "B"))
-      = from Signals.(make [ present "A"; present "B" ]));
-    assert (
-      let ctx = Proofctx.make () in
-      zip ctx (from (Signals.from "A")) (from (Signals.from "B") @ from (Signals.from "C"))
-      = from Signals.(make [ present "A"; present "B" ])
-        @ from Signals.(make [ present "A"; present "C" ]));
+      zip ctx (singleton (Parsing.instant "{A}")) (singleton (Parsing.instant "{B}"))
+      = singleton (Parsing.instant "{A, B}"));
     assert (
       let ctx = Proofctx.make () in
       zip ctx
-        (from Signals.empty @ from (Signals.from "A"))
-        (from Signals.empty @ from (Signals.from "B"))
-      = from Signals.empty
-        @ from (Signals.from "A")
-        @ from Signals.(make [ present "A"; present "B" ])
-        @ from (Signals.from "B"));
+        (singleton (Parsing.instant "{A}"))
+        (singleton (Parsing.instant "{B}") @ singleton (Parsing.instant "{C}"))
+      = singleton (Parsing.instant "{A, B}") @ singleton (Parsing.instant "{A, C}"));
+    assert (
+      let ctx = Proofctx.make () in
+      zip ctx
+        (singleton Instant.empty @ singleton (Parsing.instant "{A}"))
+        (singleton Instant.empty @ singleton (Parsing.instant "{B}"))
+      = singleton Instant.empty
+        @ singleton (Parsing.instant "{A}")
+        @ singleton (Parsing.instant "{A, B}")
+        @ singleton (Parsing.instant "{B}"));
     ()
 end
 
@@ -90,38 +87,38 @@ let rec is_bot = function
   | Empty               -> false
   | Instant _           -> false
   | Await _             -> false
-  | Sequence (es1, es2) -> is_bot es1 || is_bot es2
-  | Union (es1, es2)    -> is_bot es1 && is_bot es2
-  | Parallel (es1, es2) -> is_bot es1 || is_bot es2
+  | Sequence (tr1, tr2) -> is_bot tr1 || is_bot tr2
+  | Union (tr1, tr2)    -> is_bot tr1 && is_bot tr2
+  | Parallel (tr1, tr2) -> is_bot tr1 || is_bot tr2
   | Kleene _            -> false
-  | Timed (es, _)       -> is_bot es
-  | PCases ks           -> List.fold_left (fun acc (_, es) -> acc && is_bot es) false ks
+  | Timed (tr, _)       -> is_bot tr
+  | PCases ks           -> List.fold_left (fun acc (_, tr) -> acc && is_bot tr) false ks
 
 let rec nullable = function
   | Bottom              -> false
   | Empty               -> true
   | Instant _           -> false
   | Await _             -> false
-  | Sequence (es1, es2) -> nullable es1 && nullable es2
-  | Union (es1, es2)    -> nullable es1 || nullable es2
-  | Parallel (es1, es2) -> nullable es1 && nullable es2
+  | Sequence (tr1, tr2) -> nullable tr1 && nullable tr2
+  | Union (tr1, tr2)    -> nullable tr1 || nullable tr2
+  | Parallel (tr1, tr2) -> nullable tr1 && nullable tr2
   | Kleene _            -> true
-  | Timed (es, _)       -> nullable es
-  | PCases ks           -> List.fold_left (fun acc (_, es) -> acc || nullable es) false ks
+  | Timed (tr, _)       -> nullable tr
+  | PCases ks           -> List.fold_left (fun acc (_, tr) -> acc || nullable tr) false ks
 
-let first ctx es =
+let first ctx tr =
   let rec aux = function
     | Bottom -> empty
     | Empty -> empty
-    | Instant i -> from i
-    | Await e -> union (from Signals.empty) (from (Signals.make [ e ]))
-    | Sequence (es1, es2) when nullable es1 -> union (aux es1) (aux es2)
-    | Sequence (es1, _) -> aux es1
-    | Union (es1, es2) -> union (aux es1) (aux es2)
-    | Parallel (es1, es2) -> zip ctx (aux es1) (aux es2)
-    | Kleene es -> aux es
-    | Timed (es, _) ->
-        aux es
+    | Instant i -> singleton i
+    | Await e -> union (singleton Instant.empty) (singleton (Instant.make [ e ]))
+    | Sequence (tr1, tr2) when nullable tr1 -> union (aux tr1) (aux tr2)
+    | Sequence (tr1, _) -> aux tr1
+    | Union (tr1, tr2) -> union (aux tr1) (aux tr2)
+    | Parallel (tr1, tr2) -> zip ctx (aux tr1) (aux tr2)
+    | Kleene tr -> aux tr
+    | Timed (tr, _) ->
+        aux tr
         |> map (function
              | BaseElm { i; t = None } ->
                  let t = ctx |> Proofctx.next_term in
@@ -137,7 +134,7 @@ let first ctx es =
                         | k                  -> k)
                       ks))
     | PCases ks ->
-        let elmss = List.map (fun (_, es) -> aux es) ks in
+        let elmss = List.map (fun (_, tr) -> aux tr) ks in
         let kss = Utils.combinations elmss in
         let elms =
           kss
@@ -154,9 +151,9 @@ let first ctx es =
         in
         elms
   in
-  aux es
+  aux tr
 
-let partial_deriv ctx elm es =
+let partial_deriv ctx elm tr =
   let connect_t ~t' t =
     match (t', t) with
     | Some t', Some t ->
@@ -181,7 +178,7 @@ let partial_deriv ctx elm es =
         ctx |> Proofctx.add_precond (p =* Const 1.)
     | _                -> ()
   in
-  let rec aux ?t ?p es =
+  let rec aux ?t ?p tr =
     let reject =
       match t with
       | None   -> false
@@ -193,41 +190,41 @@ let partial_deriv ctx elm es =
     if reject then
       Bottom
     else
-      match es with
+      match tr with
       | Bottom -> Bottom
       | Empty -> Bottom
       | Instant j -> (
           match elm with
           | BaseElm { i; t = t' } ->
-              if Signals.(i |- j) then (
+              if Instant.(i |- j) then (
                 connect_t ~t' t; connect_p p; Empty)
               else
                 Bottom
           | WithProb ks'          -> (
               match p with
               | Some p ->
-                  if List.exists (fun (_, { i; _ }) -> Signals.(i |- j)) ks' then (
+                  if List.exists (fun (_, { i; _ }) -> Instant.(i |- j)) ks' then (
                     let ps' =
                       ks'
-                      |> List.filter (fun (_, { i; _ }) -> Signals.(i |- j))
+                      |> List.filter (fun (_, { i; _ }) -> Instant.(i |- j))
                       |> List.map (fun (p', { t = t'; _ }) -> connect_t ~t' t; p')
                     in
                     connect_p ~ps' (Some p); Empty)
                   else
                     Bottom
               | None   ->
-                  if List.for_all (fun (_, { i; _ }) -> Signals.(i |- j)) ks' then (
+                  if List.for_all (fun (_, { i; _ }) -> Instant.(i |- j)) ks' then (
                     let ps' = ks' |> List.map (fun (p', { t = t'; _ }) -> connect_t ~t' t; p') in
                     connect_p ~ps' None; Empty)
                   else
                     Bottom))
       | Await e -> (
-          let j = Signals.make [ e ] in
+          let j = Instant.make [ e ] in
           match t with
           | Some t -> (
               match elm with
               | BaseElm { i; t = t' } ->
-                  if Signals.(i |- j) then (
+                  if Instant.(i |- j) then (
                     connect_t ~t' (Some t); connect_p p; Empty)
                   else
                     let t1 = ctx |> Proofctx.next_term in
@@ -237,11 +234,11 @@ let partial_deriv ctx elm es =
                     connect_t ~t' (Some t1);
                     Timed (Await e, t2)
               | WithProb ks'          ->
-                  if List.for_all (fun (_, { i; _ }) -> Signals.(i |- j)) ks' then (
+                  if List.for_all (fun (_, { i; _ }) -> Instant.(i |- j)) ks' then (
                     List.iter (fun (_, { t = t'; _ }) -> connect_t ~t' (Some t)) ks';
                     let ps' = ks' |> List.map (fun (p, _) -> p) in
                     connect_p ~ps' p; Empty)
-                  else if List.exists (fun (_, { i; _ }) -> Signals.(i |- j)) ks' then
+                  else if List.exists (fun (_, { i; _ }) -> Instant.(i |- j)) ks' then
                     Bottom
                   else
                     let t1 = ctx |> Proofctx.next_term in
@@ -253,45 +250,45 @@ let partial_deriv ctx elm es =
           | _      -> (
               match elm with
               | BaseElm { i; _ } ->
-                  if Signals.(i |- j) then
+                  if Instant.(i |- j) then
                     Empty
                   else
                     Await e
               | WithProb ks'     ->
-                  if List.for_all (fun (_, { i; _ }) -> Signals.(i |- j)) ks' then
+                  if List.for_all (fun (_, { i; _ }) -> Instant.(i |- j)) ks' then
                     Empty
-                  else if List.exists (fun (_, { i; _ }) -> Signals.(i |- j)) ks' then
+                  else if List.exists (fun (_, { i; _ }) -> Instant.(i |- j)) ks' then
                     Bottom
                   else
                     Await e))
-      | Sequence (es1, es2) when nullable es1 ->
-          let t1, t2, es2 =
+      | Sequence (tr1, tr2) when nullable tr1 ->
+          let t1, t2, tr2 =
             match t with
             | Some t ->
                 let t1 = ctx |> Proofctx.next_term in
                 let t2 = ctx |> Proofctx.next_term in
                 let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
                 ctx |> Proofctx.add_precond cond;
-                (Some t1, Some t2, Timed (es2, t2))
-            | _      -> (None, None, es2)
+                (Some t1, Some t2, Timed (tr2, t2))
+            | _      -> (None, None, tr2)
           in
-          let deriv1 = aux es1 ?t:t1 ?p in
-          let deriv2 = aux es2 ?t:t2 ?p in
-          Union (Sequence (deriv1, es2), deriv2)
-      | Sequence (es1, es2) ->
-          let t1, es2 =
+          let deriv1 = aux tr1 ?t:t1 ?p in
+          let deriv2 = aux tr2 ?t:t2 ?p in
+          Union (Sequence (deriv1, tr2), deriv2)
+      | Sequence (tr1, tr2) ->
+          let t1, tr2 =
             match t with
             | Some t ->
                 let t1 = ctx |> Proofctx.next_term in
                 let t2 = ctx |> Proofctx.next_term in
                 let cond = t =* t1 +* t2 &&* (t1 >=* Const 0.) &&* (t2 >=* Const 0.) in
                 ctx |> Proofctx.add_precond cond;
-                (Some t1, Timed (es2, t2))
-            | _      -> (None, es2)
+                (Some t1, Timed (tr2, t2))
+            | _      -> (None, tr2)
           in
-          let deriv1 = aux es1 ?t:t1 ?p in
-          Sequence (deriv1, es2)
-      | Union (es1, es2) ->
+          let deriv1 = aux tr1 ?t:t1 ?p in
+          Sequence (deriv1, tr2)
+      | Union (tr1, tr2) ->
           let t1, t2 =
             match t with
             | Some _ ->
@@ -300,8 +297,8 @@ let partial_deriv ctx elm es =
                 (Some t1, Some t2)
             | _      -> (None, None)
           in
-          let deriv1 = aux es1 ?t:t1 ?p in
-          let deriv2 = aux es2 ?t:t2 ?p in
+          let deriv1 = aux tr1 ?t:t1 ?p in
+          let deriv2 = aux tr2 ?t:t2 ?p in
           (match t with
           | Some t ->
               let t1 = Utils.opt_value t1 in
@@ -316,29 +313,29 @@ let partial_deriv ctx elm es =
               ctx |> Proofctx.add_precond cond
           | _      -> ());
           Union (deriv1, deriv2)
-      | Parallel (es1, es2) ->
-          let deriv1 = aux es1 ?t ?p in
-          let deriv2 = aux es2 ?t ?p in
+      | Parallel (tr1, tr2) ->
+          let deriv1 = aux tr1 ?t ?p in
+          let deriv2 = aux tr2 ?t ?p in
           Parallel (deriv1, deriv2)
-      | Kleene es -> aux (Sequence (es, Kleene es)) ?t
-      | Timed (es, in_t) ->
+      | Kleene tr -> aux (Sequence (tr, Kleene tr)) ?t
+      | Timed (tr, in_t) ->
           (match t with
           | Some t -> ctx |> Proofctx.add_precond (t =* in_t)
           | _      -> ());
-          aux es ~t:in_t ?p
+          aux tr ~t:in_t ?p
       | PCases ks ->
           let derivs =
             List.map
-              (fun (in_p, es) ->
+              (fun (in_p, tr) ->
                 match p with
-                | None   -> (in_p, aux es ?t ~p:in_p)
-                | Some p -> (in_p, aux es ?t ~p:(p ** in_p)))
+                | None   -> (in_p, aux tr ?t ~p:in_p)
+                | Some p -> (in_p, aux tr ?t ~p:(p ** in_p)))
               ks
           in
           let derivs =
             List.filter
-              (fun (in_p, es) ->
-                if is_bot es then (
+              (fun (in_p, tr) ->
+                if is_bot tr then (
                   ctx |> Proofctx.add_precond (in_p =* Const 0.);
                   false)
                 else
@@ -347,4 +344,4 @@ let partial_deriv ctx elm es =
           in
           PCases derivs
   in
-  aux es
+  aux tr
