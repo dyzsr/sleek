@@ -1,3 +1,8 @@
+%{
+  open Ast
+  open Ast_helper
+%}
+
 %token EOF              "eof"
 %token TRUE             "True"
 %token FALSE            "False"
@@ -39,13 +44,14 @@
 %start specification
 %start only_entailments
 %start only_entailment
-%start only_pitraces
+%start only_pitrace
 %start only_trace
 %start only_instant
+
 %type <Ast.specification> specification
 %type <Ast.entailments> only_entailments
 %type <Ast.entailment> only_entailment
-%type <Ast.pitraces> only_pitraces
+%type <Ast.pitraces> only_pitrace
 %type <Ast.trace> only_trace
 %type <Instant.t> only_instant
 
@@ -61,8 +67,8 @@
 %%
 
 specification:
-    e=entailments ":" a=assertion "eof"   { Ast.Spec (e, a) }
-  | e=entailments "::" a=assertion "eof"  { Ast.Spec (e, a) }
+    e=entailments ":" a=assertion "eof"   { Spec (e, a) }
+  | e=entailments "::" a=assertion "eof"  { Spec (e, a) }
 
 only_entailments:
     e=entailments "eof"                   { e }
@@ -70,7 +76,7 @@ only_entailments:
 only_entailment:
     lhs=pitrace "|-" rhs=pitrace "eof"    { (lhs, rhs) }
 
-only_pitraces:
+only_pitrace:
     l=pitraces "eof"                      { l }
 
 only_trace:
@@ -95,43 +101,42 @@ pitrace:
   | p=pi ":"  tr=trace                    { (p, tr) }
 
 pi:
-    "(" ")"                               { Ast.True }
-  | "True"                                { Ast.True }
-  | "False"                               { Ast.False }
+    "(" ")"                               { True }
+  | "True"                                { True }
+  | "False"                               { False }
   | pi=cmp                                { pi }
-  | "~" "(" pi=paren_pi ")"               { Ast.Not pi }
+  | "~" "(" pi=paren_pi ")"               { Not pi }
   | "(" pi=paren_pi ")"                   { pi }
 
 paren_pi:
   | pi=pi                                 { pi }
-  | pi1=paren_pi "&&" pi2=paren_pi        { Ast_helper.(pi1 &&* pi2) }
-  | pi1=paren_pi "||" pi2=paren_pi        { Ast_helper.(pi1 ||* pi2) }
-  | pi1=paren_pi "->" pi2=paren_pi        { Ast_helper.(pi1 =>* pi2) }
+  | pi1=paren_pi "&&" pi2=paren_pi        { (pi1 &&* pi2) }
+  | pi1=paren_pi "||" pi2=paren_pi        { (pi1 ||* pi2) }
+  | pi1=paren_pi "->" pi2=paren_pi        { (pi1 =>* pi2) }
 
 cmp:
-    t1=term "=" t2=term                   { Ast_helper.(t1 =* t2) }
-  | t1=term "<" t2=term                   { Ast_helper.(t1 <* t2) }
-  | t1=term "<=" t2=term                  { Ast_helper.(t1 <=* t2) }
-  | t1=term ">" t2=term                   { Ast_helper.(t1 >* t2) }
-  | t1=term ">=" t2=term                  { Ast_helper.(t1 >=* t2) }
+    t1=term "=" t2=term                   { (t1 =* t2) }
+  | t1=term "<" t2=term                   { (t1 <* t2) }
+  | t1=term "<=" t2=term                  { (t1 <=* t2) }
+  | t1=term ">" t2=term                   { (t1 >* t2) }
+  | t1=term ">=" t2=term                  { (t1 >=* t2) }
 
 term:
-    n="num"                               { Ast.Const n }
-  | v="ident"                             { Ast.Var v }
-  | t1=term "+" t2=term                   { Ast_helper.(t1 +* t2) }
-  | t1=term "-" t2=term                   { Ast_helper.(t1 -* t2) }
+    n="num"                               { Const n }
+  | v="ident"                             { Var v }
+  | t1=term "+" t2=term                   { (t1 +* t2) }
+  | t1=term "-" t2=term                   { (t1 -* t2) }
 
 trace:
-    "_|_"                                 { Ast.Bottom }
-  | "empty"                               { Ast.Empty }
-  | i=instant                             { Ast.Instant i }
-  | e=waiting                             { Ast.Await e }
-  | tr1=trace "+" tr2=trace               { Ast.Union (tr1, tr2) }
-  | tr1=trace "."  tr2=trace              { Ast.Sequence (tr1, tr2) }
-  | tr1=trace "//" tr2=trace              { Ast.Parallel (tr1, tr2) }
-  | "[" ks=pcases "]"                     { Ast.PCases ks }
-  | tr=trace "^*"                         { Ast.Kleene (tr) }
-  | tr=trace "#" t=term                   { Ast.Timed (tr, t) }
+    "_|_"                                 { Bottom }
+  | "empty"                               { Empty }
+  | i=instant                             { Instant i }
+  | e=waiting                             { Await e }
+  | tr1=trace "+" tr2=trace               { Union (tr1, tr2) }
+  | tr1=trace "."  tr2=trace              { Sequence (tr1, tr2) }
+  | tr1=trace "//" tr2=trace              { Parallel (tr1, tr2) }
+  | tr=trace "^*"                         { Kleene tr }
+  | "[" ks=pcases "]"                     { PCases ks }
   | "(" tr=trace ")"                      { tr }
 
 pcases:

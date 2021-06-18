@@ -1,5 +1,5 @@
-(* Type of events *)
 type event
+(** Type of events *)
 
 val show_event : event -> string
 
@@ -11,8 +11,12 @@ val absent : string -> event
 
 val is_present : event -> bool
 
-(* Type of instant *)
+val is_absent : event -> bool
+
+val contradicts : event -> event -> bool
+
 type t
+(** Type of instant *)
 
 val isEventExist : event -> t -> bool
 

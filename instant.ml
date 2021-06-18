@@ -39,6 +39,16 @@ let is_present = function
   | Present _ -> true
   | _         -> false
 
+let is_absent = function
+  | Absent _ -> true
+  | _        -> false
+
+let contradicts e1 e2 =
+  match (e1, e2) with
+  | Present e1, Absent e2 when e1 = e2 -> true
+  | Absent e1, Present e2 when e1 = e2 -> true
+  | _ -> false
+
 (* Type of instant *)
 type t = event list
 
@@ -147,7 +157,11 @@ let rec add_UndefSigs env ins =
 let merge a b = List.sort_uniq compare (a @ b)
 
 (* Is `b` included in `a`? *)
-let ( |- ) a b = b |> List.fold_left (fun res y -> res && a |> List.exists (( = ) y)) true
+let ( |- ) a b =
+  let present = b |> List.filter is_present |> List.for_all (fun y -> List.exists (( = ) y) a) in
+  let absent = a |> List.filter is_absent |> List.for_all (fun x -> List.exists (( = ) x) b) in
+  let contradict = a |> List.exists (fun x -> List.exists (contradicts x) b) in
+  present && absent && not contradict
 
 (* tests *)
 let () =

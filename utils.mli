@@ -9,3 +9,4 @@ val opt_map2 :
   ?a:('a -> 'a) -> ?b:('a -> 'a) -> ab:('a -> 'a -> 'a) -> 'a option -> 'a option -> 'a option
 
 val combinations : 'a list list -> 'a list list
+val zip : 'a list list -> 'a list list

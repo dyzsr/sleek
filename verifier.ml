@@ -38,12 +38,12 @@ let verify_entailment (lhs, rhs) =
     and normalize lhs rhs =
       let lhs =
         lhs
-        |> Utils.fixpoint ~f:Ast_helper.simplify ~iter:(fun tr ->
+        |> Utils.fixpoint ~f:Ast_helper.normalize ~iter:(fun tr ->
                hist |> History.add_iteration ("NORM-LHS", (tr, rhs)))
       in
       let rhs =
         rhs
-        |> Utils.fixpoint ~f:Ast_helper.simplify ~iter:(fun tr ->
+        |> Utils.fixpoint ~f:Ast_helper.normalize ~iter:(fun tr ->
                hist |> History.add_iteration ("NORM-RHS", (lhs, tr)))
       in
       (lhs, rhs)
@@ -73,12 +73,6 @@ let verify_entailment (lhs, rhs) =
         check false)
       else if reoccur ctx lhs rhs then (
         hist |> History.add_iteration ("REOCCUR", (lhs, rhs));
-        let _, tr1 = lhs in
-        let _, tr2 = rhs in
-        let gen = ctx |> Proofctx.current_term_gen in
-        let t1, cond1 = Ast_helper.total_time_of_tr tr1 gen in
-        let t2, cond2 = Ast_helper.total_time_of_tr tr2 gen in
-        ctx |> Proofctx.add_precond Ast_helper.(t1 =* t2 &&* cond1 &&* cond2);
         check true)
       else (
         hist |> History.add_iteration ("UNFOLD", (lhs, rhs));

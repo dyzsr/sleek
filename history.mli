@@ -4,7 +4,7 @@ val show_entry : entry -> verbose:bool -> string
 
 val make_entry : unit -> entry
 
-val set_first : Inference.Set.elm -> entry -> unit
+val set_first : Inference.Set.first -> entry -> unit
 
 val add_iteration : string * Ast.entailment -> entry -> unit
 

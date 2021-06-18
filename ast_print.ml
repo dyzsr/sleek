@@ -7,8 +7,8 @@ let bold str = Colors.bold ^ str ^ Colors.no_bold
 
 let rec show_term_with_prec lprec rprec = function
   | Const n      -> string_of_float n
-  | Var v        -> v
-  | Gen n        -> "v" ^ string_of_int n ^ "'"
+  | Var v        -> bold v
+  | Gen n        -> bold ("v" ^ string_of_int n ^ "'")
   | Add (t1, t2) ->
       show_term_with_prec 0 50 t1 ^ "+" ^ show_term_with_prec 50 0 t2
       |> if lprec >= 50 || rprec > 50 then enclose else nothing
@@ -21,7 +21,7 @@ let rec show_term_with_prec lprec rprec = function
   | Neg t        -> "-" ^ show_term_with_prec 70 0 t
                     |> if lprec > 0 || rprec > 0 then enclose else nothing
 
-let show_term p = Colors.underline ^ show_term_with_prec 0 0 p ^ Colors.no_underline
+let show_term p = show_term_with_prec 0 0 p
 
 let rec show_pi_with_prec lprec rprec = function
   | True                -> "True"
@@ -36,13 +36,13 @@ let rec show_pi_with_prec lprec rprec = function
       | Gt -> s1 ^ ">" ^ s2
       | Ge -> s1 ^ "≥" ^ s2)
   | And (p1, p2)        ->
-      show_pi_with_prec 0 30 p1 ^ bold " ⋀ " ^ show_pi_with_prec 30 0 p2
+      show_pi_with_prec 0 30 p1 ^ " ⋀ " ^ show_pi_with_prec 30 0 p2
       |> if lprec >= 30 || rprec > 30 then enclose else nothing
   | Or (p1, p2)         ->
-      show_pi_with_prec 0 20 p1 ^ bold " ⋁ " ^ show_pi_with_prec 20 0 p2
+      show_pi_with_prec 0 20 p1 ^ " ⋁ " ^ show_pi_with_prec 20 0 p2
       |> if lprec >= 20 || rprec > 20 then enclose else nothing
   | Imply (p1, p2)      ->
-      show_pi_with_prec 0 10 p1 ^ bold " → " ^ show_pi_with_prec 10 0 p2
+      show_pi_with_prec 0 10 p1 ^ " → " ^ show_pi_with_prec 10 0 p2
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
   | Not p               -> bold "¬" ^ show_pi_with_prec 90 0 p
 
@@ -65,9 +65,6 @@ let rec show_trace_with_prec lprec rprec = function
   | Kleene tr           ->
       Printf.sprintf "%s﹡" (show_trace_with_prec 0 40 tr)
       |> if rprec >= 40 then enclose else nothing
-  | Timed (tr, term)    ->
-      Printf.sprintf "%s # %s" (show_trace_with_prec 0 20 tr) (show_term term)
-      |> if lprec >= 20 || rprec >= 20 then enclose else nothing
   | PCases ks           ->
       let show_case (p, tr) =
         Printf.sprintf "%s → %s" (show_term p) (show_trace_with_prec 0 0 tr)

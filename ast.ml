@@ -32,7 +32,6 @@ type trace =
   | Union    of trace * trace
   | Parallel of trace * trace
   | Kleene   of trace
-  | Timed    of trace * term
   | PCases   of (term * trace) list
 
 type pitrace = pi * trace

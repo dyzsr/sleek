@@ -29,49 +29,6 @@ let next_term gen =
   gen := !gen + 1;
   Ast.Gen no
 
-let pi_of_bool = function
-  | true  -> True
-  | false -> False
-
-let op_of_atomic = function
-  | Eq -> ( = )
-  | Lt -> ( < )
-  | Le -> ( <= )
-  | Gt -> ( > )
-  | Ge -> ( >= )
-
-let total_time_of_tr tr gen =
-  let rec aux = function
-    | Sequence (tr1, tr2) ->
-        let t1, cond1 = aux tr1 in
-        let t2, cond2 = aux tr2 in
-        (t1 +* t2, cond1 &&* cond2)
-    | Union (tr1, tr2)    ->
-        let t1, cond1 = aux tr1 in
-        let t2, cond2 = aux tr2 in
-        let t = gen |> next_term in
-        (t, cond1 &&* cond2 &&* (t =* t1 ||* (t =* t2)))
-    | Parallel (tr1, tr2) ->
-        let t1, cond1 = aux tr1 in
-        let t2, cond2 = aux tr2 in
-        let t = gen |> next_term in
-        (t, cond1 &&* cond2 &&* (t =* t1 &&* (t =* t2)))
-    | Timed (_, t)        -> (t, True)
-    | PCases ks           ->
-        let t = gen |> next_term in
-        let cond =
-          List.fold_left
-            (fun acc (_, tr) ->
-              let t', cond = aux tr in
-              acc &&* cond &&* (t =* t'))
-            True ks
-        in
-        (t, cond)
-    | _                   -> (Const 0., True)
-  in
-  let total, extra_conds = aux tr in
-  (total, extra_conds)
-
 let rec vars_of_term acc = function
   | Var v        -> v :: acc
   | Gen n        -> ("@" ^ string_of_int n) :: acc
@@ -162,37 +119,31 @@ let trim_pi pi terms =
   let pi = filter_by_relevance pi !used_vars in
   pi
 
-let rec simplify_term : term -> term = function
+let rec normalize_term : term -> term = function
   | Add (Const v1, Const v2) -> Const (v1 +. v2)
   | Add (t1, Const 0.)       -> t1
   | Add (Const 0., t2)       -> t2
-  | Add (t1, t2)             -> Add (simplify_term t1, simplify_term t2)
+  | Add (t1, Add (t2, t3))   -> Add (Add (t1, t2), t3)
+  | Add (t1, t2)             -> Add (normalize_term t1, normalize_term t2)
   | Sub (Const v1, Const v2) -> Const (v1 -. v2)
   | Sub (t1, Const 0.)       -> t1
   | Sub (Const 0., t2)       -> Neg t2
-  | Sub (t1, t2)             -> Sub (simplify_term t1, simplify_term t2)
+  | Sub (t1, t2)             -> Sub (normalize_term t1, normalize_term t2)
   | Mul (Const v1, Const v2) -> Const (v1 *. v2)
   | Mul (_, Const 0.)        -> Const 0.
   | Mul (Const 0., _)        -> Const 0.
   | Mul (t1, Const 1.)       -> t1
   | Mul (Const 1., t2)       -> t2
-  | Mul (t1, t2)             -> Mul (simplify_term t1, simplify_term t2)
+  | Mul (t1, Mul (t2, t3))   -> Mul (Mul (t1, t2), t3)
+  | Mul (t1, t2)             -> Mul (normalize_term t1, normalize_term t2)
   | Neg (Const v)            -> Const (-.v)
-  | Neg t                    -> Neg (simplify_term t)
+  | Neg t                    -> Neg (normalize_term t)
   | t                        -> t
 
-let rec simplify_pi : pi -> pi = function
+let rec normalize_pi : pi -> pi = function
   (* reduction *)
   | Atomic (Eq, t1, t2) when t1 = t2 -> True
-  | Atomic (op, Const v1, Const v2) ->
-      let op = op_of_atomic op in
-      pi_of_bool (op v1 v2)
-  | Atomic (op, t1, t2) ->
-      let t1' = simplify_term t1 in
-      if t1' <> t1 then
-        Atomic (op, t1', t2)
-      else
-        Atomic (op, t1, simplify_term t2)
+  | Atomic (op, t1, t2) -> Atomic (op, normalize_term t1, normalize_term t2)
   | And (True, pi) -> pi
   | And (pi, True) -> pi
   | And (False, _) -> False
@@ -210,29 +161,14 @@ let rec simplify_pi : pi -> pi = function
   | Not False -> True
   | And (p1, And (p2, p3)) -> And (And (p1, p2), p3)
   | Or (p1, Or (p2, p3)) -> Or (Or (p1, p2), p3)
-  (* simplify recursively *)
-  | And (pi1, pi2) ->
-      let pi1' = simplify_pi pi1 in
-      if pi1' <> pi1 then
-        And (pi1', pi2)
-      else
-        And (pi1, simplify_pi pi2)
-  | Or (pi1, pi2) ->
-      let pi1' = simplify_pi pi1 in
-      if pi1' <> pi1 then
-        Or (pi1', pi2)
-      else
-        Or (pi1, simplify_pi pi2)
-  | Not pi -> Not (simplify_pi pi)
-  | Imply (pi1, pi2) ->
-      let pi1' = simplify_pi pi1 in
-      if pi1' <> pi1 then
-        Imply (pi1', pi2)
-      else
-        Imply (pi1, simplify_pi pi2)
+  (* normalize recursively *)
+  | And (pi1, pi2) -> And (normalize_pi pi1, normalize_pi pi2)
+  | Or (pi1, pi2) -> Or (normalize_pi pi1, normalize_pi pi2)
+  | Imply (pi1, pi2) -> Imply (normalize_pi pi1, normalize_pi pi2)
+  | Not pi -> Not (normalize_pi pi)
   | pi -> pi
 
-let rec simplify_tr : trace -> trace = function
+let rec normalize_trace : trace -> trace = function
   (* reduction *)
   | Union (tr, Bottom) -> tr
   | Union (Bottom, tr) -> tr
@@ -247,43 +183,23 @@ let rec simplify_tr : trace -> trace = function
   | Parallel (Bottom, _) -> Bottom
   | Parallel (tr, tr') when tr = tr' -> tr
   | Union (Union (tr1, tr2), tr3) -> Union (tr1, Union (tr2, tr3))
-  | Kleene (Kleene esin) -> simplify_tr (Kleene esin)
+  | Kleene (Kleene tr) -> Kleene tr
   | Kleene Bottom -> Empty
   | Kleene Empty -> Empty
   | Kleene (Union (Empty, tr)) -> Kleene tr
   | Sequence (Sequence (tr1, tr2), tr3) -> Sequence (tr1, Sequence (tr2, tr3))
-  (* simplify recursively *)
-  | Sequence (tr1, tr2) ->
-      let tr1' = simplify_tr tr1 in
-      if tr1' <> tr1 then
-        Sequence (tr1', tr2)
-      else
-        Sequence (tr1, simplify_tr tr2)
-  | Union (tr1, tr2) ->
-      let tr1' = simplify_tr tr1 in
-      if tr1' <> tr1 then
-        Union (tr1', tr2)
-      else
-        Union (tr1, simplify_tr tr2)
-  | Parallel (tr1, tr2) ->
-      let tr1' = simplify_tr tr1 in
-      if tr1' <> tr1 then
-        Parallel (tr1', tr2)
-      else
-        Parallel (tr1, simplify_tr tr2)
-  | Kleene tr -> Kleene (simplify_tr tr)
-  | Timed (tr, t) -> Timed (simplify_tr tr, t)
+  (* normalize recursively *)
+  | Sequence (tr1, tr2) -> Sequence (normalize_trace tr1, normalize_trace tr2)
+  | Union (tr1, tr2) -> Union (normalize_trace tr1, normalize_trace tr2)
+  | Parallel (tr1, tr2) -> Parallel (normalize_trace tr1, normalize_trace tr2)
+  | Kleene tr -> Kleene (normalize_trace tr)
+  | PCases ks -> PCases (List.filter (fun (_, tr) -> tr <> Bottom) ks)
   | tr -> tr
 
-let simplify = function
+let normalize = function
   | False, _  -> (False, Bottom)
   | _, Bottom -> (False, Bottom)
-  | pi, tr    ->
-      let pi' = simplify_pi pi in
-      if pi' <> pi then
-        (pi', tr)
-      else
-        (pi, simplify_tr tr)
+  | pi, tr    -> (normalize_pi pi, normalize_trace tr)
 
 let amend_constraints (pi, tr) =
   let pi = ref pi in
@@ -296,7 +212,6 @@ let amend_constraints (pi, tr) =
     | Union (tr1, tr2)    -> aux tr1; aux tr2
     | Parallel (tr1, tr2) -> aux tr1; aux tr2
     | Kleene tr           -> aux tr
-    | Timed (tr, _)       -> aux tr
     | _                   -> ()
   in
   aux tr; (!pi, tr)

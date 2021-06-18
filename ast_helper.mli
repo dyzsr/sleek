@@ -19,15 +19,13 @@ type term_gen = int ref
 
 val next_term : term_gen -> term
 
-val total_time_of_tr : trace -> term_gen -> term * pi
-
 val visit_pi : (term -> term -> unit) -> pi -> unit
 val filter_pi : (term -> term -> bool) -> pi -> pi option
 val trim_pi : pi -> term list -> pi
 
-val simplify_term : term -> term
-val simplify_pi : pi -> pi
-val simplify_tr : trace -> trace
-val simplify : pitrace -> pitrace
+val normalize_term : term -> term
+val normalize_pi : pi -> pi
+val normalize_trace : trace -> trace
+val normalize : pitrace -> pitrace
 
 val amend_constraints : pitrace -> pitrace

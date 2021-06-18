@@ -1,7 +1,7 @@
 open Ast_print
 
 type entry = {
-  mutable first : Inference.Set.elm option;
+  mutable first : Inference.Set.first option;
   mutable iterations : (string * Ast.entailment) list;
   mutable unfoldings : entry list;
   mutable terms : Ast.term list option;
@@ -50,18 +50,18 @@ let show_entry hist ~verbose =
     in
     let show_first =
       match hist.first with
-      | None     -> id
-      | Some elm -> List.cons (print "-" (Inference.Set.show_elm elm))
+      | None       -> id
+      | Some first -> List.cons (print "-" (Inference.Set.show_first first))
     in
     let show_iterations =
       if verbose then
         List.fold_right
-          (fun (name, entailments) acc -> print name (show_entailment entailments) :: acc)
+          (fun (name, entailment) acc -> print name (show_entailment entailment) :: acc)
           hist.iterations
       else
         List.cons
-          (let name, entailments = List.hd hist.iterations in
-           print name (show_entailment entailments))
+          (let name, entailment = List.hd hist.iterations in
+           print name (show_entailment entailment))
     in
     let show_unfoldings =
       List.fold_right List.cons

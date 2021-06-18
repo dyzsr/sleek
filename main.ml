@@ -159,121 +159,121 @@ let tests =
     "True && ({A} + {B}) // {C}  |-  True && ({A} // {C}) + ({B} // {C}) : true";
     "True && A? // B?  |-  True && A?.B? + {}*.{A, B} +  B?.A? : true";
     (* Timed pitraces *)
-    "t > 1 && {A} # t  |-  t > 3 && {A} # t : false";
-    "t > 1 && {A} # t  |-  True && {A} : true";
-    "t < 1 && {A} # t  |-  t < 2 && {A} # t : true";
-    "t < 2 && {A} # t  |-  t < 2 && {A} # t : true";
-    "t < 2 && {A} # t  |-  t < 1 && {A} # t : false";
-    (* Timed Union *)
-    "t < 1 && {A} # t  |-  t < 3 && {A}+{A} # t : true";
-    "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t : true";
-    "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t : false";
-    "t < 1 && {A} # t  |-  (t1 < 3 && t2 < 3) && ({A} # t1) + ({A} # t2) : true";
-    "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
-    "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
-    "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
-    "t < 1 && {A}+{B} # t  |-  (t1 < 2 && t2 < 2) && ({A} # t1) + ({B} # t2) : true";
-    (* Timed Empty *)
-    "t < 1 && {A} # t  |-  t < 3 && (emp+{A}) # t : true";
-    "t < 1 && emp # t  |-  t < 3 && emp # t : true";
-    "t < 1 && emp # t  |-  t < 3 && (emp+{A}) # t : true";
-    "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true";
-    "t < 3 && {A} # t  |-  t < 1 && (emp+{A}) # t : false";
-    "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false";
-    "t < 1 && (emp+{A}) # t  |-  t < 3 && (emp+{A}) # t : true";
-    (* Timed Sequence *)
-    "t > 1 && {A}.{B} # t  |-  t > 3 && {A}.{B} # t: false";
-    "t < 1 && {A}.{B} # t  |-  t < 3 && {A}.{B} # t: true";
-    "t < 1 && emp.{B} # t  |-  t < 3 && emp.{B} # t: true";
-    "(t1 < 1 && t2 < 1) && ({A} # t1).({B} # t2)  |-  t < 3 && {A}.{B} # t: true";
-    "(t1 > 1 && t2 > 1) && ({A} # t1).({B} # t2)  |-  t > 3 && {A}.{B} # t: false";
-    (* Timed Empty & Sequnce & Union *)
-    "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
-    "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
-    "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
-    "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
-    "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
-    (* Timed Parallel *)
-    "t < 1 && ({A} // {B}) # t  |-  t < 3 && {A} # t // {B} # t : true";
-    "t < 1 && {A} # t // {B} # t  |-  t < 3 && ({A} // {B}) # t : true";
-    "t < 1 && {A, B} # t  |-  t < 3 && ({A} // {B}) # t : true";
-    "t < 3 && ({A} // {B}) # t  |-  t < 1 && {A} # t // {B} # t : false";
-    "t > 3 && ({A} // {B}) # t  |-  t > 1 && {A} # t // {B} # t : true";
-    "t > 1 && ({A} // {B}) # t  |-  t > 3 && {A} # t // {B} # t : false";
-    "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  t < 3 && {A}.{B} # t // {C}.{D} # t : true";
-    "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  t > 3 && {A}.{B} # t // {C}.{D} # t : false";
-    "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 < 3 && t2 < 3) && {A}.{B} # t1 // {C}.{D} # t2 : true";
-    "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 > 3 && t2 > 3) && {A}.{B} # t1 // {C}.{D} # t2 : false";
-    (* Timed Kleene *)
-    "t < 1: {A}* # t  |-  t < 3: {A}* # t :: true";
-    "t < 1: {A}* # t  |-  t < 3: {A}*     :: true";
-    "t < 1: {A}*      |-  t < 3: {A}* # t :: false";
-    "t > 1: {A}* # t  |-  t > 3: {A}* # t :: false";
-    "t < 1: {A}* # t  |-  t < 3: {A}*.{B}* # t :: true";
-    "t < 1: {A}*.{B}*.{C} # t  |-  t < 3: {A}*.{B}*.{C}* # t :: true";
-    "t < 1: {A}*.{B}*.{C} # t  |-  t < 3: {A}*.{B}*.{C} # t  :: true";
-    "t < 1: {A}.{B}*.{C} # t   |-  t < 3: {A}*.{B}*.{C} # t  :: true";
-    "t < 1: {A}*.{B}.{C} # t   |-  t < 3: {A}*.{B}*.{C} # t  :: true";
-    "t < 1: {A}.{B}.{C} # t    |-  t < 3: {A}*.{B}*.{C} # t  :: true";
-    "t < 1: {A}.{B}.{C}* # t   |-  t < 3: {A}*.{B}*.{C} # t  :: false";
-    "t < 3: {A}* # t  |-  t < 1: {A}* # t   :: false";
-    "t > 3: {A}* # t  |-  t > 1: {A}* # t   :: true";
-    "t > 3: {A}* # t  |-  t > 1: {A}*       :: true";
-    "t > 1: {A}* # t  |-  t > 3: {A}* # t   :: false";
-    "t > 1: {A}* # t  |-  t1 > 3: {A}*      :: true";
-    "t < 1: {A}* # t  |-  t1 < 3: {A}* # t1 :: true";
-    "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
-    "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
-    (* Timed Await *)
-    "t < 1: A? # t  |-  t < 3: A? # t  :: true";
-    "t < 1: A? # t  |-  s < 3: A? # s  :: true";
-    "t < 3: A? # t  |-  t < 1: A? # t  :: false";
-    "t > 3: A? # t  |-  t > 1: A? # t  :: true";
-    "t > 1: A? # t  |-  t > 3: A? # t  :: false";
-    "t < 1: {B}.A? # t  |-  t < 3: A? # t  :: true";
-    "t < 1: (A? # t) // ({A} # t)  |-  t < 3: {A} # t  :: true";
-    "t < 1: (A? # t) // ({A} # t)  |-  s < 3: {A} # s  :: true";
-    "(t1 < 1 && t2 < 1): (A? # t1) // ({A} # t2)  |-  t < 3: {A} # t  :: true";
-    (* Nested Timed *)
-    "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
-    "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : true";
-    "(t1 < 2 && t2 < 3) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
-    "(t1 < 3 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
-    "(t1 < 3 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
-    "t > 3 && {A} # t  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
-    "t > 3 && {A} # t  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
-    "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
-    "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
-    "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
-    "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
-    (* irrelevant constraints *)
-    "t < 1 && {A}  |-  t < 3 && {A} : true";
-    "t < 1 && {A}  |-  (t1 < 3 && t2 < 3) && {A} + ({A}#t2) : true";
-    (* Strange constraints *)
-    "(d>3 && t<d) && {A} # t  |-  (d>3 && t<d) && {A} # t : true";
-    (* multiple entailments *)
-    "True && {A}  |-  True && {A} || True && {B} : true";
-    "True && {A} || True && {B}  |-  True && {}  : true";
-    "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
-    (* others *)
-    {|
-        (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
-         {Prep}·({Cook} # tv2)·{Ready}·{}  |-
-        (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : false
-    |};
-    {|
-        (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
-         ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{}  |-
-        (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : false
-    |};
-    {|
-        (d=3 ⋀ 0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
-         ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{Go}  |-
-        (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : true
-    |};
-    "t < 3: {Doing}* # t.{Done}  |-  u < 4: ({Doing} + {Other})* # u . {Done} : true";
-    "t < 3: {A}* # t.{B} || True: {B}  |-  u < 4: {A}* # u.{B}  :: true";
-    "True: {A}.{C}.B?.{D}  |-  True: {A}.B?.{D}  :: true";
+    (* "t > 1 && {A} # t  |-  t > 3 && {A} # t : false";
+       "t > 1 && {A} # t  |-  True && {A} : true";
+       "t < 1 && {A} # t  |-  t < 2 && {A} # t : true";
+       "t < 2 && {A} # t  |-  t < 2 && {A} # t : true";
+       "t < 2 && {A} # t  |-  t < 1 && {A} # t : false";
+       (* Timed Union *)
+       "t < 1 && {A} # t  |-  t < 3 && {A}+{A} # t : true";
+       "t < 1 && {A} # t  |-  t < 3 && {A}+{B} # t : true";
+       "t > 1 && {A} # t  |-  t > 3 && {A}+{B} # t : false";
+       "t < 1 && {A} # t  |-  (t1 < 3 && t2 < 3) && ({A} # t1) + ({A} # t2) : true";
+       "(t1 < 1 && t2 < 1) && ({A} # t1) + ({B} # t2)  |-  t < 3 && {A}+{B} # t: true";
+       "(t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2)  |-  t > 3 && {A}+{B} # t: false";
+       "(t > 3 && t1 > 1 && t2 > 1) && ({A} # t1) + ({B} # t2) # t  |-  t > 3 && {A}+{B} # t: true";
+       "t < 1 && {A}+{B} # t  |-  (t1 < 2 && t2 < 2) && ({A} # t1) + ({B} # t2) : true";
+       (* Timed Empty *)
+       "t < 1 && {A} # t  |-  t < 3 && (emp+{A}) # t : true";
+       "t < 1 && emp # t  |-  t < 3 && emp # t : true";
+       "t < 1 && emp # t  |-  t < 3 && (emp+{A}) # t : true";
+       "t > 3 && {A} # t  |-  t > 1 && (emp+{A}) # t : true";
+       "t < 3 && {A} # t  |-  t < 1 && (emp+{A}) # t : false";
+       "t > 1 && {A} # t  |-  t > 3 && (emp+{A}) # t : false";
+       "t < 1 && (emp+{A}) # t  |-  t < 3 && (emp+{A}) # t : true";
+       (* Timed Sequence *)
+       "t > 1 && {A}.{B} # t  |-  t > 3 && {A}.{B} # t: false";
+       "t < 1 && {A}.{B} # t  |-  t < 3 && {A}.{B} # t: true";
+       "t < 1 && emp.{B} # t  |-  t < 3 && emp.{B} # t: true";
+       "(t1 < 1 && t2 < 1) && ({A} # t1).({B} # t2)  |-  t < 3 && {A}.{B} # t: true";
+       "(t1 > 1 && t2 > 1) && ({A} # t1).({B} # t2)  |-  t > 3 && {A}.{B} # t: false";
+       (* Timed Empty & Sequnce & Union *)
+       "(t1 < 1 && t2 < 1) && (emp+{A} # t1).{B} # t2  |-  t < 3 && {B}+{A}.{B} # t: true";
+       "(t1 < 1 && t2 < 1) && {A}.(emp+{B} # t1) # t2  |-  t < 3 && {A}+{A}.{B} # t: true";
+       "(t1 > 1 && t2 > 1) && (emp+{A} # t1).{B} # t2  |-  t > 3 && {B}+{A}.{B} # t: false";
+       "(t1 > 1 && t2 > 1) && {A}.(emp+{B} # t1) # t2  |-  t > 3 && {A}+{A}.{B} # t: false";
+       "(t1>3 && t10 > 5) && ({A} # t1).({B}#t10) |- (t2>2 && t11 > 4) && ({A}#t2).({B}#t11) : true";
+       (* Timed Parallel *)
+       "t < 1 && ({A} // {B}) # t  |-  t < 3 && {A} # t // {B} # t : true";
+       "t < 1 && {A} # t // {B} # t  |-  t < 3 && ({A} // {B}) # t : true";
+       "t < 1 && {A, B} # t  |-  t < 3 && ({A} // {B}) # t : true";
+       "t < 3 && ({A} // {B}) # t  |-  t < 1 && {A} # t // {B} # t : false";
+       "t > 3 && ({A} // {B}) # t  |-  t > 1 && {A} # t // {B} # t : true";
+       "t > 1 && ({A} // {B}) # t  |-  t > 3 && {A} # t // {B} # t : false";
+       "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  t < 3 && {A}.{B} # t // {C}.{D} # t : true";
+       "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  t > 3 && {A}.{B} # t // {C}.{D} # t : false";
+       "t < 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 < 3 && t2 < 3) && {A}.{B} # t1 // {C}.{D} # t2 : true";
+       "t > 1 && ({A}.{B} // {C}.{D}) # t  |-  (t1 > 3 && t2 > 3) && {A}.{B} # t1 // {C}.{D} # t2 : false";
+       (* Timed Kleene *)
+       "t < 1: {A}* # t  |-  t < 3: {A}* # t :: true";
+       "t < 1: {A}* # t  |-  t < 3: {A}*     :: true";
+       "t < 1: {A}*      |-  t < 3: {A}* # t :: false";
+       "t > 1: {A}* # t  |-  t > 3: {A}* # t :: false";
+       "t < 1: {A}* # t  |-  t < 3: {A}*.{B}* # t :: true";
+       "t < 1: {A}*.{B}*.{C} # t  |-  t < 3: {A}*.{B}*.{C}* # t :: true";
+       "t < 1: {A}*.{B}*.{C} # t  |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+       "t < 1: {A}.{B}*.{C} # t   |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+       "t < 1: {A}*.{B}.{C} # t   |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+       "t < 1: {A}.{B}.{C} # t    |-  t < 3: {A}*.{B}*.{C} # t  :: true";
+       "t < 1: {A}.{B}.{C}* # t   |-  t < 3: {A}*.{B}*.{C} # t  :: false";
+       "t < 3: {A}* # t  |-  t < 1: {A}* # t   :: false";
+       "t > 3: {A}* # t  |-  t > 1: {A}* # t   :: true";
+       "t > 3: {A}* # t  |-  t > 1: {A}*       :: true";
+       "t > 1: {A}* # t  |-  t > 3: {A}* # t   :: false";
+       "t > 1: {A}* # t  |-  t1 > 3: {A}*      :: true";
+       "t < 1: {A}* # t  |-  t1 < 3: {A}* # t1 :: true";
+       "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
+       "t < 1: {A}* # t  |-  (t1 < 3 && t2 < 3): ({A}* # t1).({B}* # t2) :: true";
+       (* Timed Await *)
+       "t < 1: A? # t  |-  t < 3: A? # t  :: true";
+       "t < 1: A? # t  |-  s < 3: A? # s  :: true";
+       "t < 3: A? # t  |-  t < 1: A? # t  :: false";
+       "t > 3: A? # t  |-  t > 1: A? # t  :: true";
+       "t > 1: A? # t  |-  t > 3: A? # t  :: false";
+       "t < 1: {B}.A? # t  |-  t < 3: A? # t  :: true";
+       "t < 1: (A? # t) // ({A} # t)  |-  t < 3: {A} # t  :: true";
+       "t < 1: (A? # t) // ({A} # t)  |-  s < 3: {A} # s  :: true";
+       "(t1 < 1 && t2 < 1): (A? # t1) // ({A} # t2)  |-  t < 3: {A} # t  :: true";
+       (* Nested Timed *)
+       "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
+       "(t1 < 1 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : true";
+       "(t1 < 2 && t2 < 3) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
+       "(t1 < 3 && t2 < 2) && ({A} # t1) # t2  |-  t < 1 && {A} # t : false";
+       "(t1 < 3 && t2 < 2) && ({A} # t1) # t2  |-  t < 2 && {A} # t : true";
+       "t > 3 && {A} # t  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
+       "t > 3 && {A} # t  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+       "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
+       "(t1 > 2 && t2 > 3) && ({A} # t1) # t2  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+       "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t1) # t2 : true";
+       "(t1 > 2 && t2 > 3) && ({A} # t2) # t1  |-  (t1 > 2 && t2 > 3) && ({A} # t2) # t1 : true";
+       (* irrelevant constraints *)
+       "t < 1 && {A}  |-  t < 3 && {A} : true";
+       "t < 1 && {A}  |-  (t1 < 3 && t2 < 3) && {A} + ({A}#t2) : true";
+       (* Strange constraints *)
+       "(d>3 && t<d) && {A} # t  |-  (d>3 && t<d) && {A} # t : true";
+       (* multiple entailments *)
+       "True && {A}  |-  True && {A} || True && {B} : true";
+       "True && {A} || True && {B}  |-  True && {}  : true";
+       "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
+       (* others *)
+       {|
+           (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
+            {Prep}·({Cook} # tv2)·{Ready}·{}  |-
+           (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : false
+       |};
+       {|
+           (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
+            ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{}  |-
+           (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : false
+       |};
+       {|
+           (d=3 ⋀ 0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
+            ({Prep} # tv1)·({Cook} # tv2)·{Ready}·{Go}  |-
+           (0≤t ⋀ t<3): ({Prep}·{Cook} # t)·{Ready}·{Go} : true
+       |};
+       "t < 3: {Doing}* # t.{Done}  |-  u < 4: ({Doing} + {Other})* # u . {Done} : true";
+       "t < 3: {A}* # t.{B} || True: {B}  |-  u < 4: {A}* # u.{B}  :: true";
+       "True: {A}.{C}.B?.{D}  |-  True: {A}.B?.{D}  :: true"; *)
     (* Probabilities *)
     "(): [0.3 -> {A} | 0.7 -> {B}]  |-  (p < 0.6): [p -> {A} | q -> {B}] :: true";
     "(): [0.3 -> {A} | 0.7 -> {B}]  |-  (p < 0.6): [p -> {A} | q -> {B} | r -> {C}] :: true";
@@ -304,6 +304,8 @@ let tests =
     "(): [0.3 -> {A, B} | 0.7 -> {A}]  |-  (p = 0.3 && q = 0.7): [p -> {A} | q -> {A}] :: false";
     "(): [0.3 -> {A, B} | 0.7 -> {A}]  |-  (p = 0.7 && q = 0.3): [p -> {A} | q -> {A}] :: false";
     "(): [0.3 -> {A, B} | 0.7 -> {A}]  |-  (p=0.7 && q=0.3 || p=0.3 && q=0.7): [p -> {A} | q -> {A}] :: false";
+    (* "(): [0.1 -> {A, B} | 0.8 -> {A} | 0.1 -> {C, B}] |- (): [0.9 -> {A} | 0.1 -> {C}] :: true"; *)
+    "(): {A}.[0.5 -> {B}.[0.5 -> {C} | 0.5 -> emp] | 0.5 -> emp] |- (): [0.25 -> {}*.{C} | p -> {!C}*] :: true";
   ]
 
 let () =

@@ -18,12 +18,6 @@ let next_term ctx = next_term ctx.term_gen
 let replace_constants (pi, tr) ctx =
   let pi = ref pi in
   let rec aux = function
-    | Timed (tr, Const v) ->
-        let t = ctx |> next_term in
-        let cond = t =* Const v in
-        pi := cond &&* !pi;
-        Timed (aux tr, t)
-    | Timed (tr, t)       -> Timed (aux tr, t)
     | PCases ks           ->
         PCases
           (List.map
@@ -67,7 +61,7 @@ let exists_entail lhs rhs ctx =
     end) in
     let forw = ref Terms.empty in
     let back = ref Terms.empty in
-    let union t1 t2 =
+    let _union t1 t2 =
       match (!forw |> Terms.find_opt t1, !back |> Terms.find_opt t2) with
       | None, None         ->
           forw := !forw |> Terms.add t1 t2;
@@ -89,9 +83,6 @@ let exists_entail lhs rhs ctx =
         | Union (tr1, tr2), Union (tr1', tr2') -> aux tr1 tr1' && aux tr2 tr2'
         | Parallel (tr1, tr2), Parallel (tr1', tr2') -> aux tr1 tr1' && aux tr2 tr2'
         | Kleene tr, Kleene tr' -> aux tr tr'
-        | Timed (tr, t), Timed (tr', t') ->
-            let iso = union t t' in
-            if iso then aux tr tr' else false
         | _ -> false
     in
     aux tr1 tr1' && aux tr2 tr2'
@@ -107,16 +98,16 @@ let tracked_terms ctx =
   ctx.terms
 
 let check_constraints ctx =
-  let constrnt =
+  let constr =
     let rec aux = function
       | Imply (hd, tl) -> Imply (hd, aux tl)
       | pi             -> Imply (pi, ctx.postcond)
     in
     aux ctx.precond
   in
-  let constrnt = Ast_helper.trim_pi constrnt (ctx |> tracked_terms) in
-  let constrnt = Utils.fixpoint ~f:simplify_pi constrnt in
-  (not (Checker.check (Not constrnt)), constrnt)
+  let constr = Ast_helper.trim_pi constr (ctx |> tracked_terms) in
+  let constr = Utils.fixpoint ~f:normalize_pi constr in
+  (not (Checker.check (Not constr)), constr)
 
 (* tests *)
 let () =
