@@ -5,12 +5,12 @@ module Set = struct
   include List
 
   type first =
-    | Base of Instant.t  (** base case *)
-    | Dist of (Ast.term * Instant.t) list  (** probability distribution *)
+    | Solid of Instant.t  (** a solid element *)
+    | PDist of (Ast.term * Instant.t) list  (** a probability distribution *)
 
   let show_first = function
-    | Base i  -> Colors.magenta ^ Instant.show i ^ Colors.reset
-    | Dist ks ->
+    | Solid i  -> Colors.magenta ^ Instant.show i ^ Colors.reset
+    | PDist ks ->
         Colors.yellow ^ "{"
         ^ String.concat " | "
             (List.map
@@ -24,7 +24,7 @@ module Set = struct
   type t = first list
   let empty = []
   let is_empty s = List.length s = 0
-  let singleton i = [ Base i ]
+  let singleton i = [ Solid i ]
   let union a b = a @ b |> List.sort_uniq Stdlib.compare
   let zip a b =
     a
@@ -34,11 +34,11 @@ module Set = struct
            @ (b
              |> List.map (fun elm2 ->
                     match (elm1, elm2) with
-                    | Base i1, Base i2                  -> Base (Instant.merge i1 i2)
-                    | Dist ks, Base i | Base i, Dist ks ->
-                        Dist (List.map (fun (p, i') -> (p, Instant.merge i i')) ks)
-                    | Dist ks1, Dist ks2                ->
-                        Dist
+                    | Solid i1, Solid i2 -> Solid (Instant.merge i1 i2)
+                    | PDist ks, Solid i | Solid i, PDist ks ->
+                        PDist (List.map (fun (p, i') -> (p, Instant.merge i i')) ks)
+                    | PDist ks1, PDist ks2 ->
+                        PDist
                           (ks1
                           |> List.concat_map (fun (p1, i1) ->
                                  ks2 |> List.map (fun (p2, i2) -> (p1 ** p2, Instant.merge i1 i2)))
@@ -108,14 +108,14 @@ let first ctx tr =
         let elms =
           kss
           |> List.map (fun ks ->
-                 Dist
+                 PDist
                    (List.fold_left
                       (fun acc elm ->
                         match elm with
-                        | Base i     ->
+                        | Solid i     ->
                             let p = ctx |> Proofctx.next_term in
                             (p, i) :: acc
-                        | Dist in_ks -> in_ks @ acc)
+                        | PDist in_ks -> in_ks @ acc)
                       [] ks))
         in
         elms
@@ -129,14 +129,13 @@ let partial_deriv ctx first tr =
     | Empty -> Bottom
     | Instant j -> (
         match first with
-        | Base i   -> if Instant.(i |- j) then Empty else Bottom
-        | Dist ks' -> (
+        | Solid i   -> if Instant.(i |- j) then Empty else Bottom
+        | PDist ks' -> (
             match p with
             | Some _ -> failwith "impossible"
             | None   ->
                 if List.for_all (fun (_, i) -> Instant.(i |- j)) ks' then (
                   let p' = ks' |> List.fold_left (fun acc (p', _) -> p' +* acc) (Const 0.) in
-                  ctx |> Proofctx.track_term p';
                   ctx |> Proofctx.add_precond (p' =* Const 1.);
                   Empty)
                 else
@@ -144,14 +143,13 @@ let partial_deriv ctx first tr =
     | Await e -> (
         let j = Instant.make [ e ] in
         match first with
-        | Base i   -> if Instant.(i |- j) then Empty else Await e
-        | Dist ks' -> (
+        | Solid i   -> if Instant.(i |- j) then Empty else Await e
+        | PDist ks' -> (
             match p with
             | Some _ -> failwith "impossible"
             | _      ->
                 if List.for_all (fun (_, i) -> Instant.(i |- j)) ks' then (
                   let p' = ks' |> List.fold_left (fun acc (p', _) -> p' +* acc) (Const 0.) in
-                  ctx |> Proofctx.track_term p';
                   ctx |> Proofctx.add_precond (p' =* Const 1.);
                   Empty)
                 else if List.exists (fun (_, i) -> Instant.(i |- j)) ks' then
@@ -176,7 +174,7 @@ let partial_deriv ctx first tr =
     | Kleene tr -> aux ~first (Sequence (tr, Kleene tr)) ?p
     | PCases ks -> (
         match first with
-        | Base _   ->
+        | Solid _   ->
             let derivs =
               List.map
                 (fun (in_p, tr) ->
@@ -185,25 +183,55 @@ let partial_deriv ctx first tr =
                   | None   -> (in_p, aux ~first tr ~p:in_p))
                 ks
             in
+            let p = List.fold_left (fun acc (in_p, _) -> in_p +* acc) (Const 0.) ks in
+            ctx |> Proofctx.add_precond (p =* Const 1.);
             derivs
             |> List.iter (fun (in_p, tr) ->
-                   if is_bot tr then (
-                     ctx |> Proofctx.track_term in_p;
-                     ctx |> Proofctx.add_precond (in_p =* Const 0.)));
+                   if is_bot tr then
+                     ctx |> Proofctx.add_precond (in_p =* Const 0.));
             PCases derivs
-        | Dist ks' ->
+        | PDist ks' ->
             let derivss =
               ks'
               |> List.map (fun (_, i) ->
                      ks
                      |> List.map (fun (in_p, tr) ->
                             match p with
-                            | Some p -> aux ~first:(Base i) tr ~p:(p ** in_p)
-                            | None   -> aux ~first:(Base i) tr ~p:in_p))
+                            | Some p -> aux ~first:(Solid i) tr ~p:(p ** in_p)
+                            | None   -> aux ~first:(Solid i) tr ~p:in_p))
             in
             if List.exists (fun derivs -> List.for_all is_bot derivs) derivss then
               Bottom
             else
+              let derivables =
+                List.map2 (fun (p', _) derivs -> (p', derivs)) ks' derivss
+                |> List.map (fun (p', derivs) ->
+                       let ps =
+                         List.map2 (fun (in_p, _) deriv -> (in_p, deriv)) ks derivs
+                         |> List.mapi (fun i (in_p, derivs) -> (in_p, derivs, i))
+                         |> List.filter_map (fun (in_p, deriv, i) ->
+                                if is_bot deriv then None else Some (in_p, i))
+                       in
+                       (p', ps))
+              in
+              let conds =
+                derivables
+                |> List.mapi (fun i (p', ps) ->
+                       let p' =
+                         derivables
+                         |> List.filteri (fun j (_, ps2) ->
+                                if i = j then
+                                  false
+                                else
+                                  List.for_all
+                                    (fun (_, m) -> List.exists (fun (_, n) -> n = m) ps)
+                                    ps2)
+                         |> List.fold_left (fun acc (p2', _) -> p2' +* acc) p'
+                       in
+                       let p = List.fold_left (fun acc (in_p, _) -> in_p +* acc) (Const 0.) ps in
+                       p' =* p)
+              in
+              List.iter (fun cond -> ctx |> Proofctx.add_precond cond) conds;
               let derivss = Utils.zip derivss in
               let derivs =
                 List.map
@@ -213,6 +241,11 @@ let partial_deriv ctx first tr =
                     | Some deriv -> deriv)
                   derivss
               in
+              List.iter2
+                (fun (in_p, _) deriv ->
+                  if is_bot deriv then
+                    ctx |> Proofctx.add_precond (in_p =* Const 0.))
+                ks derivs;
               let derivs = List.map2 (fun (in_p, _) deriv -> (in_p, deriv)) ks derivs in
               PCases derivs)
   in

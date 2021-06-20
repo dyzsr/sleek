@@ -30,26 +30,28 @@ let next_term gen =
   Ast.Gen no
 
 let rec vars_of_term acc = function
-  | Var v        -> v :: acc
-  | Gen n        -> ("@" ^ string_of_int n) :: acc
-  | Add (t1, t2) ->
-      let acc = vars_of_term acc t1 in
-      let acc = vars_of_term acc t2 in
-      acc
-  | Sub (t1, t2) ->
-      let acc = vars_of_term acc t1 in
-      let acc = vars_of_term acc t2 in
-      acc
-  | _            -> acc
+  | Const _ -> acc
+  | Var v -> v :: acc
+  | Gen n -> ("@" ^ string_of_int n) :: acc
+  | Add (t1, t2) | Sub (t1, t2) | Mul (t1, t2) -> vars_of_term (vars_of_term acc t1) t2
+  | Neg t -> vars_of_term acc t
+
+let terms_of_pi pi =
+  let rec aux acc = function
+    | True -> acc
+    | False -> acc
+    | Atomic (_, t1, t2) -> t1 :: t2 :: acc
+    | And (p1, p2) | Or (p1, p2) | Imply (p1, p2) -> aux (aux acc p1) p2
+    | Not pi -> aux acc pi
+  in
+  aux [] pi
 
 let rec visit_pi f = function
-  | True               -> ()
-  | False              -> ()
+  | True -> ()
+  | False -> ()
   | Atomic (_, t1, t2) -> f t1 t2
-  | And (p1, p2)       -> visit_pi f p1; visit_pi f p2
-  | Or (p1, p2)        -> visit_pi f p1; visit_pi f p2
-  | Imply (p1, p2)     -> visit_pi f p1; visit_pi f p2
-  | Not pi             -> visit_pi f pi
+  | And (p1, p2) | Or (p1, p2) | Imply (p1, p2) -> visit_pi f p1; visit_pi f p2
+  | Not pi -> visit_pi f pi
 
 let rec filter_pi f = function
   | True                     -> Some True

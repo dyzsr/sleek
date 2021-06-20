@@ -16,8 +16,9 @@ val ( !* ) : pi -> pi
 val is_const : term -> bool
 
 type term_gen = int ref
-
 val next_term : term_gen -> term
+
+val terms_of_pi : pi -> term list
 
 val visit_pi : (term -> term -> unit) -> pi -> unit
 val filter_pi : (term -> term -> bool) -> pi -> pi option

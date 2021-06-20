@@ -9,8 +9,8 @@ let verify_entailment (lhs, rhs) =
     (* build constraints *)
     let pre, _ = lhs in
     let post, _ = rhs in
-    ctx |> Proofctx.add_precond pre;
-    ctx |> Proofctx.add_postcond post;
+    ctx |> Proofctx.set_precond pre;
+    ctx |> Proofctx.set_postcond post;
     (lhs, rhs)
   in
   let rec aux ctx ?first lhs rhs =

@@ -89,13 +89,20 @@ let exists_entail lhs rhs ctx =
   in
   List.exists (isomorphic (lhs, rhs)) ctx.entails
 
-let add_precond cond ctx = ctx.precond <- cond =>* ctx.precond
-let add_postcond cond ctx = ctx.postcond <- cond &&* ctx.postcond
-
 let track_term term ctx = ctx.terms <- term :: ctx.terms
 let tracked_terms ctx =
   ctx.terms <- List.sort_uniq Stdlib.compare ctx.terms;
   ctx.terms
+
+let set_precond cond ctx = ctx.precond <- cond
+let set_postcond cond ctx = ctx.postcond <- cond
+
+let add_precond cond ctx =
+  terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
+  ctx.precond <- cond =>* ctx.precond
+let add_postcond cond ctx =
+  terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
+  ctx.postcond <- cond &&* ctx.postcond
 
 let check_constraints ctx =
   let constr =

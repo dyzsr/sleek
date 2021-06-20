@@ -12,10 +12,12 @@ val replace_constants : Ast.pitrace -> t -> Ast.pitrace
 val add_entail : Ast.trace -> Ast.trace -> t -> unit
 val exists_entail : Ast.trace -> Ast.trace -> t -> bool
 
+val set_precond : Ast.pi -> t -> unit
+val set_postcond : Ast.pi -> t -> unit
+
 val add_precond : Ast.pi -> t -> unit
 val add_postcond : Ast.pi -> t -> unit
 
-val track_term : Ast.term -> t -> unit
 val tracked_terms : t -> Ast.term list
 
 val check_constraints : t -> bool * Ast.pi
