@@ -34,10 +34,10 @@ type trace =
   | Kleene   of trace
   | PCases   of (term * trace) list
 
-type pitrace = pi * trace
-type pitraces = pitrace list
+type effect = pi * trace
+type effects = effect list
 
-type entailment = pitrace * pitrace
-type entailments = pitraces * pitraces
+type entailment = effect * effect
+type entailments = effects * effects
 
 type specification = Spec of entailments * bool

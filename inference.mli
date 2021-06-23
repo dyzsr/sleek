@@ -8,10 +8,6 @@ module Set : sig
   val for_all : (first -> bool) -> t -> bool
 end
 
-val is_bot : Ast.trace -> bool
-
-val nullable : Ast.trace -> bool
-
 val first : Proofctx.t -> Ast.trace -> Set.t
 
 val partial_deriv : Proofctx.t -> Set.first -> Ast.trace -> Ast.trace

@@ -44,14 +44,14 @@
 %start specification
 %start only_entailments
 %start only_entailment
-%start only_pitrace
+%start only_effect
 %start only_trace
 %start only_instant
 
 %type <Ast.specification> specification
 %type <Ast.entailments> only_entailments
 %type <Ast.entailment> only_entailment
-%type <Ast.pitraces> only_pitrace
+%type <Ast.effects> only_effect
 %type <Ast.trace> only_trace
 %type <Instant.t> only_instant
 
@@ -74,10 +74,10 @@ only_entailments:
     e=entailments "eof"                   { e }
 
 only_entailment:
-    lhs=pitrace "|-" rhs=pitrace "eof"    { (lhs, rhs) }
+    lhs=effect "|-" rhs=effect "eof"    { (lhs, rhs) }
 
-only_pitrace:
-    l=pitraces "eof"                      { l }
+only_effect:
+    l=effects "eof"                      { l }
 
 only_trace:
     tr=trace "eof"                        { tr }
@@ -90,13 +90,13 @@ assertion:
   | "false"                               { false }
 
 entailments:
-    lhs=pitraces "|-" rhs=pitraces        { (lhs, rhs) }
+    lhs=effects "|-" rhs=effects        { (lhs, rhs) }
 
-pitraces:
-    e=pitrace                             { [e] }
-  | e=pitrace "||" l=pitraces             { e :: l }
+effects:
+    e=effect                             { [e] }
+  | e=effect "||" l=effects             { e :: l }
 
-pitrace:
+effect:
     p=pi "&&" tr=trace                    { (p, tr) }
   | p=pi ":"  tr=trace                    { (p, tr) }
 

@@ -4,7 +4,7 @@ val entailments : string -> Ast.entailments
 
 val entailment : string -> Ast.entailment
 
-val pitrace : string -> Ast.pitraces
+val effect : string -> Ast.effects
 
 val trace : string -> Ast.trace
 

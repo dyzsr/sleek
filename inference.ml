@@ -1,3 +1,4 @@
+open Ast
 open Ast_helper
 open Ast_print
 
@@ -6,7 +7,7 @@ module Set = struct
 
   type first =
     | Solid of Instant.t  (** a solid element *)
-    | PDist of (Ast.term * Instant.t) list  (** a probability distribution *)
+    | PDist of (term * Instant.t) list  (** a probability distribution *)
 
   let show_first = function
     | Solid i  -> Colors.magenta ^ Instant.show i ^ Colors.reset
@@ -66,30 +67,7 @@ module Set = struct
     ()
 end
 
-open Ast
 open Set
-
-let rec is_bot = function
-  | Bottom              -> true
-  | Empty               -> false
-  | Instant _           -> false
-  | Await _             -> false
-  | Sequence (tr1, tr2) -> is_bot tr1 || is_bot tr2
-  | Union (tr1, tr2)    -> is_bot tr1 && is_bot tr2
-  | Parallel (tr1, tr2) -> is_bot tr1 || is_bot tr2
-  | Kleene _            -> false
-  | PCases ks           -> List.fold_left (fun acc (_, tr) -> acc && is_bot tr) true ks
-
-let rec nullable = function
-  | Bottom              -> false
-  | Empty               -> true
-  | Instant _           -> false
-  | Await _             -> false
-  | Sequence (tr1, tr2) -> nullable tr1 && nullable tr2
-  | Union (tr1, tr2)    -> nullable tr1 || nullable tr2
-  | Parallel (tr1, tr2) -> nullable tr1 && nullable tr2
-  | Kleene _            -> true
-  | PCases ks           -> List.fold_left (fun acc (_, tr) -> acc || nullable tr) false ks
 
 let first ctx tr =
   let rec aux = function
@@ -103,7 +81,9 @@ let first ctx tr =
     | Parallel (tr1, tr2) -> zip (aux tr1) (aux tr2)
     | Kleene tr -> aux tr
     | PCases ks ->
-        let elmss = List.map (fun (_, tr) -> aux tr) ks in
+        let elmss =
+          ks |> List.map (fun (_, tr) -> aux tr) |> List.filter (fun elms -> not (is_empty elms))
+        in
         let kss = Utils.combinations elmss in
         let elms =
           kss

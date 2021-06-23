@@ -7,7 +7,7 @@ val clone : t -> t
 val current_term_gen : t -> Ast_helper.term_gen
 val next_term : t -> Ast.term
 
-val replace_constants : Ast.pitrace -> t -> Ast.pitrace
+val replace_constants : Ast.effect -> t -> Ast.effect
 
 val add_entail : Ast.trace -> Ast.trace -> t -> unit
 val exists_entail : Ast.trace -> Ast.trace -> t -> bool

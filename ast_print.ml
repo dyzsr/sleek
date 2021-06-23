@@ -73,17 +73,15 @@ let rec show_trace_with_prec lprec rprec = function
 
 let show_trace tr = Colors.cyan ^ show_trace_with_prec 0 0 tr ^ Colors.reset
 
-let show_pitrace (pi, trace) =
-  Printf.sprintf "%s: %s" (show_pi_with_prec 0 99 pi) (show_trace trace)
+let show_effect (pi, trace) = Printf.sprintf "%s: %s" (show_pi_with_prec 0 99 pi) (show_trace trace)
 
-let show_pitraces l =
-  let strs = List.map show_pitrace l in
+let show_effects l =
+  let strs = List.map show_effect l in
   String.concat (Colors.bold ^ "  ⋁  " ^ Colors.no_bold) strs
 
-let show_entailment (lhs, rhs) = Printf.sprintf "%s  ⤇  %s" (show_pitrace lhs) (show_pitrace rhs)
+let show_entailment (lhs, rhs) = Printf.sprintf "%s  ⤇  %s" (show_effect lhs) (show_effect rhs)
 
-let show_entailments (lhs, rhs) =
-  Printf.sprintf "%s  ⤇  %s" (show_pitraces lhs) (show_pitraces rhs)
+let show_entailments (lhs, rhs) = Printf.sprintf "%s  ⤇  %s" (show_effects lhs) (show_effects rhs)
 
 let show_specification (Spec (entailments, assertion)) =
   Printf.sprintf "%s %s:: %B%s" (show_entailments entailments) Colors.magenta assertion Colors.reset

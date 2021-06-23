@@ -21,6 +21,8 @@ let opt_map2 ?(a = fun x -> x) ?(b = fun y -> y) ~ab x y =
   | None, Some y   -> Some (b y)
   | Some x, Some y -> Some (ab x y)
 
+let last xs = List.fold_left (fun _ y -> y) (List.hd xs) xs
+
 let combinations xss =
   List.fold_left
     (fun acc xs -> xs |> List.map (fun x -> List.map (fun ys -> x :: ys) acc) |> List.flatten)

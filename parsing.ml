@@ -25,7 +25,7 @@ let entailments text = parse Parser.only_entailments text
 
 let entailment text = parse Parser.only_entailment text
 
-let pitrace text = parse Parser.only_pitrace text
+let effect text = parse Parser.only_effect text
 
 let trace text = parse Parser.only_trace text
 

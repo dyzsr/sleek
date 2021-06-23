@@ -55,9 +55,13 @@ let show_entry hist ~verbose =
     in
     let show_iterations =
       if verbose then
-        List.fold_right
-          (fun (name, entailment) acc -> print name (show_entailment entailment) :: acc)
-          hist.iterations
+        List.append
+          [
+            (let name, entailment = List.hd hist.iterations in
+             print name (show_entailment entailment));
+            (let name, entailment = Utils.last hist.iterations in
+             print name (show_entailment entailment));
+          ]
       else
         List.cons
           (let name, entailment = List.hd hist.iterations in

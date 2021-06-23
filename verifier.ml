@@ -1,3 +1,4 @@
+open Ast_helper
 open Ast_print
 
 let verify_entailment (lhs, rhs) =
@@ -16,35 +17,37 @@ let verify_entailment (lhs, rhs) =
   let rec aux ctx ?first lhs rhs =
     let hist = History.make_entry () in
     Utils.opt_iter ~f:(fun x -> hist |> History.set_first x) first;
-    let bot_lhs (_, tr1) = Inference.is_bot tr1
-    and bot_rhs (_, tr2) = Inference.is_bot tr2
-    and disprove (_, tr1) (_, tr2) = Inference.nullable tr1 && not (Inference.nullable tr2)
+    let bot_lhs (_, tr1) = is_bot tr1
+    and bot_rhs (_, tr2) = is_bot tr2
+    and disprove (_, tr1) (_, tr2) = nullable tr1 && not (nullable tr2)
     and reoccur ctx (_, tr1) (_, tr2) = Proofctx.exists_entail tr1 tr2 ctx
     and unfold ctx (pi1, tr1) (pi2, tr2) =
-      ctx |> Proofctx.add_entail tr1 tr2;
-      let firsts = Inference.first ctx tr1 in
-      let terminate = Inference.Set.is_empty firsts in
-      let verdict =
-        firsts
-        |> Inference.Set.for_all (fun first ->
-               let ctx = Proofctx.clone ctx in
-               let tr1 = Inference.partial_deriv ctx first tr1 in
-               let tr2 = Inference.partial_deriv ctx first tr2 in
-               let verdict, sub_hist = aux ctx ~first (pi1, tr1) (pi2, tr2) in
-               hist |> History.add_unfolding sub_hist;
-               verdict)
-      in
-      (verdict, terminate)
+      if is_null tr1 then
+        (true, true)
+      else (
+        ctx |> Proofctx.add_entail tr1 tr2;
+        let firsts = Inference.first ctx tr1 in
+        let verdict =
+          firsts
+          |> Inference.Set.for_all (fun first ->
+                 let ctx = Proofctx.clone ctx in
+                 let tr1 = Inference.partial_deriv ctx first tr1 in
+                 let tr2 = Inference.partial_deriv ctx first tr2 in
+                 let verdict, sub_hist = aux ctx ~first (pi1, tr1) (pi2, tr2) in
+                 hist |> History.add_unfolding sub_hist;
+                 verdict)
+        in
+        (verdict, false))
     and normalize lhs rhs =
       let lhs =
         lhs
-        |> Utils.fixpoint ~f:Ast_helper.normalize ~iter:(fun tr ->
-               hist |> History.add_iteration ("NORM-LHS", (tr, rhs)))
+        |> Utils.fixpoint ~f:normalize ~iter:(fun tr ->
+               hist |> History.add_iteration ("NORMALIZE", (tr, rhs)))
       in
       let rhs =
         rhs
-        |> Utils.fixpoint ~f:Ast_helper.normalize ~iter:(fun tr ->
-               hist |> History.add_iteration ("NORM-RHS", (lhs, tr)))
+        |> Utils.fixpoint ~f:normalize ~iter:(fun tr ->
+               hist |> History.add_iteration ("NORMALIZE", (lhs, tr)))
       in
       (lhs, rhs)
     in
