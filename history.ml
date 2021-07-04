@@ -1,31 +1,26 @@
 open Ast_print
 
 type entry = {
-  mutable first : Inference.Set.first option;
-  mutable iterations : (string * Ast.entailment) list;
-  mutable unfoldings : entry list;
+  mutable first : (Rewriting.first * Rewriting.first) option;
+  mutable steps : (string * Ast.entailment) list;
+  mutable children : (entry, Rewriting.first * Rewriting.first) Either.t list;
   mutable terms : Ast.term list option;
   mutable constraints : Ast.pi option;
   mutable verdict : bool option;
 }
 
 let make_entry () =
-  {
-    first = None;
-    iterations = [];
-    unfoldings = [];
-    terms = None;
-    constraints = None;
-    verdict = None;
-  }
+  { first = None; steps = []; children = []; terms = None; constraints = None; verdict = None }
 
-let set_first first hist = hist.first <- Some first
-
-let add_iteration (label, tr) hist =
+let add_step (label, tr) hist =
   (* Printf.printf "%s :: %s\n" label (Ast.show_entailment tr); *)
-  hist.iterations <- (label, tr) :: hist.iterations
+  hist.steps <- (label, tr) :: hist.steps
 
-let add_unfolding sub hist = hist.unfoldings <- sub :: hist.unfoldings
+let add_unfolding sub hist = hist.children <- Left sub :: hist.children
+
+let add_failure lfirst rfirst hist = hist.children <- Right (lfirst, rfirst) :: hist.children
+
+let set_first lfirst rfirst hist = hist.first <- Some (lfirst, rfirst)
 
 let set_terms terms hist = if List.length terms > 0 then hist.terms <- Some terms
 
@@ -50,33 +45,41 @@ let show_entry hist ~verbose =
     in
     let show_first =
       match hist.first with
-      | None       -> id
-      | Some first -> List.cons (print "-" (Inference.Set.show_first first))
+      | None                  -> id
+      | Some (lfirst, rfirst) ->
+          List.cons
+            (print "-" (Rewriting.show_first lfirst ^ "  ⊑  " ^ Rewriting.show_first rfirst))
     in
-    let show_iterations =
+    let show_steps =
       if verbose then
         List.append
           [
-            (let name, entailment = List.hd hist.iterations in
+            (let name, entailment = List.hd hist.steps in
              print name (show_entailment entailment));
-            (let name, entailment = Utils.last hist.iterations in
+            (let name, entailment = Utils.last hist.steps in
              print name (show_entailment entailment));
           ]
       else
         List.cons
-          (let name, entailment = List.hd hist.iterations in
+          (let name, entailment = List.hd hist.steps in
            print name (show_entailment entailment))
     in
-    let show_unfoldings =
-      List.fold_right List.cons
-        (List.mapi
-           (fun i x ->
-             let prefix' = get_prefix () in
-             if i = 0 then
-               aux (prefix' ^ "   ") (prefix' ^ "└──") x
-             else
-               aux (prefix' ^ "│  ") (prefix' ^ "├──") x)
-           hist.unfoldings)
+    let show_children =
+      List.append
+        (hist.children
+        |> List.mapi (fun i child ->
+               let inner_spaces = if i = 0 then "   " else "│  " in
+               let inner_prefix = if i = 0 then "└──" else "├──" in
+               match child with
+               | Either.Left sub               ->
+                   let prefix' = get_prefix () in
+                   let spaces = prefix' ^ inner_spaces in
+                   let prefix = prefix' ^ inner_prefix in
+                   aux spaces prefix sub
+               | Either.Right (lfirst, rfirst) ->
+                   print "-"
+                     (Printf.sprintf "%s%s  ⋢  %s" inner_prefix (Rewriting.show_first lfirst)
+                        (Rewriting.show_first rfirst))))
     in
     let _show_terms =
       match hist.terms with
@@ -102,8 +105,8 @@ let show_entry hist ~verbose =
                ^ (if verdict then "SUCCESS" else "FAILURE")
                ^ Colors.reset))
     in
-    [] |> show_first |> show_iterations |> show_unfoldings |> show_constraints |> show_verdict
-    |> List.rev |> String.concat "\n"
+    [] |> show_first |> show_steps |> show_children |> show_constraints |> show_verdict |> List.rev
+    |> String.concat "\n"
   in
   aux "" "" hist
 

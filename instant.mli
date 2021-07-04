@@ -26,7 +26,7 @@ val empty : t
 
 val is_empty : t -> bool
 
-val singleton : string -> t
+val singleton : event -> t
 
 val make : event list -> t
 

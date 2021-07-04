@@ -16,7 +16,7 @@
   ast_helper
   ast_print
   instant
-  inference
+  rewriting
   proofctx
   checker
   history

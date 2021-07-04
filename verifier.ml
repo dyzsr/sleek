@@ -16,41 +16,7 @@ let verify_entailment (lhs, rhs) =
   in
   let rec aux ctx ?first lhs rhs =
     let hist = History.make_entry () in
-    Utils.opt_iter ~f:(fun x -> hist |> History.set_first x) first;
-    let bot_lhs (_, tr1) = is_bot tr1
-    and bot_rhs (_, tr2) = is_bot tr2
-    and disprove (_, tr1) (_, tr2) = nullable tr1 && not (nullable tr2)
-    and reoccur ctx (_, tr1) (_, tr2) = Proofctx.exists_entail tr1 tr2 ctx
-    and unfold ctx (pi1, tr1) (pi2, tr2) =
-      if is_null tr1 then
-        (true, true)
-      else (
-        ctx |> Proofctx.add_entail tr1 tr2;
-        let firsts = Inference.first ctx tr1 in
-        let verdict =
-          firsts
-          |> Inference.Set.for_all (fun first ->
-                 let ctx = Proofctx.clone ctx in
-                 let tr1 = Inference.partial_deriv ctx first tr1 in
-                 let tr2 = Inference.partial_deriv ctx first tr2 in
-                 let verdict, sub_hist = aux ctx ~first (pi1, tr1) (pi2, tr2) in
-                 hist |> History.add_unfolding sub_hist;
-                 verdict)
-        in
-        (verdict, false))
-    and normalize lhs rhs =
-      let lhs =
-        lhs
-        |> Utils.fixpoint ~f:normalize ~iter:(fun tr ->
-               hist |> History.add_iteration ("NORMALIZE", (tr, rhs)))
-      in
-      let rhs =
-        rhs
-        |> Utils.fixpoint ~f:normalize ~iter:(fun tr ->
-               hist |> History.add_iteration ("NORMALIZE", (lhs, tr)))
-      in
-      (lhs, rhs)
-    in
+    Utils.opt_iter ~f:(fun (l, r) -> hist |> History.set_first l r) first;
     let check = function
       | false ->
           hist |> History.set_verdict false;
@@ -62,23 +28,70 @@ let verify_entailment (lhs, rhs) =
           hist |> History.set_verdict verdict;
           verdict
     in
+    let bot_lhs (_, tr1) = is_bot tr1
+    and bot_rhs (_, tr2) = is_bot tr2
+    and disprove (_, tr1) (_, tr2) = nullable tr1 && not (nullable tr2)
+    and reoccur ctx (_, tr1) (_, tr2) = ctx |> Proofctx.exists_entail tr1 tr2
+    and unfold ctx (pi1, tr1) (pi2, tr2) =
+      if is_null tr1 then
+        (true, true)
+      else if is_null tr2 then
+        (false, true)
+      else (
+        ctx |> Proofctx.add_entail tr1 tr2;
+        let lfirsts = Rewriting.first tr1 in
+        let rfirsts = Rewriting.first tr2 in
+        let verdict =
+          lfirsts
+          |> Rewriting.First_set.for_all (fun lfirst ->
+                 let tr1 = Rewriting.derivative lfirst tr1 in
+                 let tr2 = Rewriting.derivative lfirst tr2 in
+                 rfirsts
+                 |> Rewriting.First_set.exists (fun rfirst ->
+                        let res, cond = Rewriting.unify lfirst rfirst in
+                        if res then (
+                          let ctx = Proofctx.clone ctx in
+                          ctx |> Proofctx.add_precond cond;
+                          let verdict, sub_hist =
+                            aux ctx ~first:(lfirst, rfirst) (pi1, tr1) (pi2, tr2)
+                          in
+                          hist |> History.add_unfolding sub_hist;
+                          verdict)
+                        else (
+                          hist |> History.add_failure lfirst rfirst;
+                          check false)))
+        in
+        (verdict, false))
+    and normalize lhs rhs =
+      let lhs =
+        lhs
+        |> Utils.fixpoint ~f:normalize ~iter:(fun tr ->
+               hist |> History.add_step ("NORMALIZE", (tr, rhs)))
+      in
+      let rhs =
+        rhs
+        |> Utils.fixpoint ~f:normalize ~iter:(fun tr ->
+               hist |> History.add_step ("NORMALIZE", (lhs, tr)))
+      in
+      (lhs, rhs)
+    in
     (* Verify *)
     let lhs, rhs = normalize lhs rhs in
     let verdict =
       if bot_lhs lhs then (
-        hist |> History.add_iteration ("Bot-LHS", (lhs, rhs));
+        hist |> History.add_step ("Bot-LHS", (lhs, rhs));
         check true)
       else if bot_rhs rhs then (
-        hist |> History.add_iteration ("Bot-RHS", (lhs, rhs));
+        hist |> History.add_step ("Bot-RHS", (lhs, rhs));
         check false)
       else if disprove lhs rhs then (
-        hist |> History.add_iteration ("DISPROVE", (lhs, rhs));
+        hist |> History.add_step ("DISPROVE", (lhs, rhs));
         check false)
       else if reoccur ctx lhs rhs then (
-        hist |> History.add_iteration ("REOCCUR", (lhs, rhs));
+        hist |> History.add_step ("REOCCUR", (lhs, rhs));
         check true)
       else (
-        hist |> History.add_iteration ("UNFOLD", (lhs, rhs));
+        hist |> History.add_step ("UNFOLD", (lhs, rhs));
         let verdict, terminate = unfold ctx lhs rhs in
         if verdict && terminate then
           check true

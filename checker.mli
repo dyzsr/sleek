@@ -1,1 +1,1 @@
-val check : Ast.pi -> bool
+val sat : Ast.pi -> bool

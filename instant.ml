@@ -74,7 +74,7 @@ let is_empty = function
   | [] -> true
   | _  -> false
 
-let singleton name = [ present name ]
+let singleton e = [ e ]
 
 (* Make new instant singleton name list *)
 let make lst = List.sort_uniq compare lst
@@ -159,7 +159,7 @@ let merge a b = List.sort_uniq compare (a @ b)
 (* Is `b` included in `a`? *)
 let ( |- ) a b =
   let present = b |> List.filter is_present |> List.for_all (fun y -> List.exists (( = ) y) a) in
-  let absent = a |> List.filter is_absent |> List.for_all (fun x -> List.exists (( = ) x) b) in
+  let absent = b |> List.filter is_absent |> List.for_all (fun y -> List.exists (( = ) y) a) in
   let contradict = a |> List.exists (fun x -> List.exists (contradicts x) b) in
   present && absent && not contradict
 

@@ -99,22 +99,21 @@ let set_postcond cond ctx = ctx.postcond <- cond
 
 let add_precond cond ctx =
   terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
-  ctx.precond <- cond =>* ctx.precond
+  ctx.precond <- cond &&* ctx.precond
 let add_postcond cond ctx =
   terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
   ctx.postcond <- cond &&* ctx.postcond
 
 let check_constraints ctx =
-  let constr =
-    let rec aux = function
-      | Imply (hd, tl) -> Imply (hd, aux tl)
-      | pi             -> Imply (pi, ctx.postcond)
-    in
-    aux ctx.precond
-  in
-  let constr = Ast_helper.trim_pi constr (ctx |> tracked_terms) in
-  let constr = Utils.fixpoint ~f:normalize_pi constr in
-  (not (Checker.check (Not constr)), constr)
+  let precond = trim_pi ctx.precond (ctx |> tracked_terms) in
+  let precond = Utils.fixpoint ~f:normalize_pi precond in
+  if not (Checker.sat precond) then
+    (false, precond)
+  else
+    let constr = precond =>* ctx.postcond in
+    let constr = trim_pi constr (ctx |> tracked_terms) in
+    let constr = Utils.fixpoint ~f:normalize_pi constr in
+    (not (Checker.sat (Not constr)), constr)
 
 (* tests *)
 let () =

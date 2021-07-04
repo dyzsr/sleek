@@ -16,7 +16,7 @@ let rec show_term_with_prec lprec rprec = function
       show_term_with_prec 0 50 t1 ^ "-" ^ show_term_with_prec 50 0 t2
       |> if lprec >= 50 || rprec > 50 then enclose else nothing
   | Mul (t1, t2) ->
-      show_term_with_prec 0 60 t1 ^ "✕" ^ show_term_with_prec 60 0 t2
+      show_term_with_prec 0 60 t1 ^ "·" ^ show_term_with_prec 60 0 t2
       |> if lprec >= 60 || rprec > 60 then enclose else nothing
   | Neg t        -> "-" ^ show_term_with_prec 70 0 t
                     |> if lprec > 0 || rprec > 0 then enclose else nothing
@@ -63,7 +63,7 @@ let rec show_trace_with_prec lprec rprec = function
       Printf.sprintf "%s ║ %s" (show_trace_with_prec 0 10 tr1) (show_trace_with_prec 10 0 tr2)
       |> if lprec > 10 || rprec >= 10 then enclose else nothing
   | Kleene tr           ->
-      Printf.sprintf "%s﹡" (show_trace_with_prec 0 40 tr)
+      Printf.sprintf "%s*" (show_trace_with_prec 0 40 tr)
       |> if rprec >= 40 then enclose else nothing
   | PCases ks           ->
       let show_case (p, tr) =
@@ -79,9 +79,11 @@ let show_effects l =
   let strs = List.map show_effect l in
   String.concat (Colors.bold ^ "  ⋁  " ^ Colors.no_bold) strs
 
-let show_entailment (lhs, rhs) = Printf.sprintf "%s  ⤇  %s" (show_effect lhs) (show_effect rhs)
+let show_entailment (lhs, rhs) =
+  Printf.sprintf "%s  %s╞═%s  %s" (show_effect lhs) Colors.yellow Colors.reset (show_effect rhs)
 
-let show_entailments (lhs, rhs) = Printf.sprintf "%s  ⤇  %s" (show_effects lhs) (show_effects rhs)
+let show_entailments (lhs, rhs) =
+  Printf.sprintf "%s  %s╞═%s  %s" (show_effects lhs) Colors.yellow Colors.reset (show_effects rhs)
 
 let show_specification (Spec (entailments, assertion)) =
   Printf.sprintf "%s %s:: %B%s" (show_entailments entailments) Colors.magenta assertion Colors.reset

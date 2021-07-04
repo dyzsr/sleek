@@ -26,7 +26,7 @@ let rec pi_to_expr ctx : Ast.pi -> Expr.expr = function
   | Imply (pi1, pi2)    -> Boolean.mk_implies ctx (pi_to_expr ctx pi1) (pi_to_expr ctx pi2)
   | Not pi              -> Boolean.mk_not ctx (pi_to_expr ctx pi)
 
-let check pi =
+let sat pi =
   let cfg = [ ("model", "false"); ("proof", "false") ] in
   let ctx = mk_context cfg in
   let expr = pi_to_expr ctx pi in
