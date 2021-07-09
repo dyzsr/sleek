@@ -1,4 +1,4 @@
-val verify_entailment : Ast.entailment -> bool * History.entry
+val verify_entailment : Ast.entailment -> bool * (Ast.entailment * History.entry)
 
 val verify_entailments : Ast.entailments -> bool * History.t
 

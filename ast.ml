@@ -37,6 +37,7 @@ type trace =
 type effect = pi * trace
 type effects = effect list
 
+type entail = trace * trace
 type entailment = effect * effect
 type entailments = effects * effects
 

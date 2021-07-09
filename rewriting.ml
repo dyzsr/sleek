@@ -7,14 +7,13 @@ type first =
   | PDist of (term * Instant.t) list  (** a probability distribution *)
 
 let show_first = function
-  | Solid i  -> Colors.magenta ^ Instant.show i ^ Colors.reset
+  | Solid i  -> Colors.magenta ^ Instant.show i
   | PDist ks ->
-      Colors.yellow ^ "{"
-      ^ String.concat " | "
-          (List.map
-             (fun (p, i) -> Colors.magenta ^ show_term p ^ " → " ^ Instant.show i ^ Colors.yellow)
-             ks)
-      ^ "}" ^ Colors.reset
+      Colors.magenta' ^ "{" ^ Colors.magenta
+      ^ String.concat
+          (Colors.magenta' ^ " | " ^ Colors.magenta)
+          (List.map (fun (p, i) -> show_term p ^ " → " ^ Instant.show i) ks)
+      ^ Colors.magenta' ^ "}"
 
 let merge_first first1 first2 =
   match (first1, first2) with
@@ -27,13 +26,14 @@ let merge_first first1 first2 =
         |> List.concat_map (fun (p1, i1) ->
                ks2 |> List.map (fun (p2, i2) -> (p1 ** p2, Instant.merge i1 i2))))
 
-module First_set = struct
+module Firsts = struct
   include List
 
   type t = first list
   let empty = []
   let is_empty s = List.length s = 0
   let singleton i = [ Solid i ]
+  let from_list l = List.sort_uniq Stdlib.compare l
   let union a b = a @ b |> List.sort_uniq Stdlib.compare
   let zip a b =
     a
@@ -62,7 +62,7 @@ module First_set = struct
     ()
 end
 
-open First_set
+open Firsts
 
 let unify first1 first2 =
   match (first1, first2) with
@@ -72,7 +72,7 @@ let unify first1 first2 =
       let p_sum =
         List.fold_left (fun acc (p, j) -> if Instant.(i |- j) then p +* acc else acc) (Const 0.) d
       in
-      let cond = Const 1. =* p_sum in
+      let cond = p_sum =* Const 1. in
       (res, cond)
   | PDist d, Solid j   ->
       let res = List.exists (fun (_, i) -> Instant.(i |- j)) d in
@@ -152,7 +152,7 @@ let first tr =
                  else
                    Some (PDist dist))
         in
-        firsts
+        from_list firsts
   in
   aux tr
 

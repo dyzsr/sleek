@@ -104,16 +104,26 @@ let add_postcond cond ctx =
   terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
   ctx.postcond <- cond &&* ctx.postcond
 
+let constraints ctx =
+  let precond = Utils.fixpoint ~f:normalize_pi ctx.precond in
+  let postcond = Utils.fixpoint ~f:normalize_pi ctx.postcond in
+  let constr = Utils.fixpoint ~f:normalize_pi (precond =>* postcond) in
+  ctx.precond <- precond;
+  ctx.postcond <- postcond;
+  constr
+
 let check_constraints ctx =
   let precond = trim_pi ctx.precond (ctx |> tracked_terms) in
-  let precond = Utils.fixpoint ~f:normalize_pi precond in
   if not (Checker.sat precond) then
-    (false, precond)
+    (false, "unsat precond")
   else
     let constr = precond =>* ctx.postcond in
     let constr = trim_pi constr (ctx |> tracked_terms) in
-    let constr = Utils.fixpoint ~f:normalize_pi constr in
-    (not (Checker.sat (Not constr)), constr)
+    let hold = not (Checker.sat (Not constr)) in
+    if hold then
+      (true, "")
+    else
+      (false, "wrong postcond")
 
 (* tests *)
 let () =

@@ -10,6 +10,8 @@ val show_effect : effect -> string
 
 val show_effects : effects -> string
 
+val show_entail : entail -> string
+
 val show_entailment : entailment -> string
 
 val show_entailments : entailments -> string

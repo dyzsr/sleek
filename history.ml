@@ -2,34 +2,48 @@ open Ast_print
 
 type entry = {
   mutable first : (Rewriting.first * Rewriting.first) option;
-  mutable steps : (string * Ast.entailment) list;
+  mutable steps : (string * Ast.entail) list;
   mutable children : (entry, Rewriting.first * Rewriting.first) Either.t list;
   mutable terms : Ast.term list option;
   mutable constraints : Ast.pi option;
+  mutable comment : string;
   mutable verdict : bool option;
 }
 
 let make_entry () =
-  { first = None; steps = []; children = []; terms = None; constraints = None; verdict = None }
+  {
+    first = None;
+    steps = [];
+    children = [];
+    terms = None;
+    constraints = None;
+    comment = "";
+    verdict = None;
+  }
 
-let add_step (label, tr) hist =
+let add_step (label, entail) ent =
   (* Printf.printf "%s :: %s\n" label (Ast.show_entailment tr); *)
-  hist.steps <- (label, tr) :: hist.steps
+  ent.steps <- (label, entail) :: ent.steps
 
-let add_unfolding sub hist = hist.children <- Left sub :: hist.children
+let add_unfolding sub ent = ent.children <- Left sub :: ent.children
 
-let add_failure lfirst rfirst hist = hist.children <- Right (lfirst, rfirst) :: hist.children
+let add_failure lfirst rfirst ent = ent.children <- Right (lfirst, rfirst) :: ent.children
 
-let set_first lfirst rfirst hist = hist.first <- Some (lfirst, rfirst)
+let set_first lfirst rfirst ent = ent.first <- Some (lfirst, rfirst)
 
-let set_terms terms hist = if List.length terms > 0 then hist.terms <- Some terms
+let set_terms terms ent = if List.length terms > 0 then ent.terms <- Some terms
 
-let set_constraints constrnt hist = hist.constraints <- Some constrnt
+let set_constraints constrnt ent = ent.constraints <- Some constrnt
 
-let set_verdict verdict hist = hist.verdict <- Some verdict
+let set_comment comment ent = ent.comment <- comment
 
-let show_entry hist ~verbose =
-  let rec aux spaces prefix hist =
+let set_verdict verdict ent = ent.verdict <- Some verdict
+
+let pass = Colors.yellow ^ "✔"
+let reject = Colors.magenta ^ "✘"
+
+let show_entry ent ~verbose =
+  let rec aux spaces prefix ent =
     let first = ref true in
     let get_prefix () =
       if !first then (
@@ -40,33 +54,41 @@ let show_entry hist ~verbose =
     in
     let id x = x in
     let print name message =
-      Printf.sprintf "%s%10s %s┃%s  %s%s%s" Colors.yellow name Colors.magenta Colors.reset
-        (get_prefix ()) message Colors.reset
+      let prefix = Colors.default ^ get_prefix () in
+      Printf.sprintf "%s%10s %s┃  %s%s%s" Colors.yellow name Colors.magenta prefix message
+        Colors.reset
     in
     let show_first =
-      match hist.first with
+      match ent.first with
       | None                  -> id
       | Some (lfirst, rfirst) ->
+          let verdict =
+            match ent.verdict with
+            | None         -> ""
+            | Some verdict -> if verdict then pass else reject
+          in
           List.cons
-            (print "-" (Rewriting.show_first lfirst ^ "  ⊑  " ^ Rewriting.show_first rfirst))
+            (print "-"
+               (Printf.sprintf "%s  %s⊑  %s %s: %s" (Rewriting.show_first lfirst) Colors.yellow
+                  (Rewriting.show_first rfirst) Colors.yellow verdict))
     in
     let show_steps =
       if verbose then
         List.append
           [
-            (let name, entailment = List.hd hist.steps in
-             print name (show_entailment entailment));
-            (let name, entailment = Utils.last hist.steps in
-             print name (show_entailment entailment));
+            (let name, entail = List.hd ent.steps in
+             print name (show_entail entail));
+            (let name, entail = Utils.last ent.steps in
+             print name (show_entail entail));
           ]
       else
         List.cons
-          (let name, entailment = List.hd hist.steps in
-           print name (show_entailment entailment))
+          (let name, entail = List.hd ent.steps in
+           print name (show_entail entail))
     in
     let show_children =
       List.append
-        (hist.children
+        (ent.children
         |> List.mapi (fun i child ->
                let inner_spaces = if i = 0 then "   " else "│  " in
                let inner_prefix = if i = 0 then "└──" else "├──" in
@@ -78,11 +100,12 @@ let show_entry hist ~verbose =
                    aux spaces prefix sub
                | Either.Right (lfirst, rfirst) ->
                    print "-"
-                     (Printf.sprintf "%s%s  ⋢  %s" inner_prefix (Rewriting.show_first lfirst)
-                        (Rewriting.show_first rfirst))))
+                     (Printf.sprintf "%s%s  %s⋢  %s %s: %s" inner_prefix
+                        (Rewriting.show_first lfirst) Colors.yellow (Rewriting.show_first rfirst)
+                        Colors.yellow reject)))
     in
     let _show_terms =
-      match hist.terms with
+      match ent.terms with
       | None       -> id
       | Some terms ->
           List.cons
@@ -90,29 +113,17 @@ let show_entry hist ~verbose =
                (Colors.yellow ^ (List.map show_term terms |> String.concat ", ") ^ Colors.reset))
     in
     let show_constraints =
-      match hist.constraints with
+      match ent.constraints with
       | None      -> id
       | Some True -> id
-      | Some con  -> List.cons (print "(CHECK)" (show_pi con))
+      | Some con  ->
+          let comment = if ent.comment = "" then "" else "\"" ^ ent.comment ^ "\"" in
+          List.cons (print "Pi" (show_pi con ^ "  " ^ Colors.cyan ^ comment))
     in
-    let show_verdict =
-      match hist.verdict with
-      | None         -> id
-      | Some verdict ->
-          List.cons
-            (print "[RESULT]"
-               (Colors.blue ^ Colors.italic
-               ^ (if verdict then "SUCCESS" else "FAILURE")
-               ^ Colors.reset))
-    in
-    [] |> show_first |> show_steps |> show_children |> show_constraints |> show_verdict |> List.rev
+    [] |> show_first |> show_steps |> show_constraints |> show_children |> List.rev
     |> String.concat "\n"
   in
-  aux "" "" hist
-
-type t = entry list list
-
-let from_entries l = l
+  aux "" "" ent
 
 let roman n =
   assert (n >= 0);
@@ -147,23 +158,31 @@ let case_no i j =
   let i = roman i in
   Printf.sprintf "%s-%d" i j
 
+type t = (Ast.entailment * entry) list list
+
+let from_entries l = l
+
 let show hist ~verbose =
   let _, output =
     List.fold_left
       (fun (i, acc) l ->
         ( i + 1,
-          let _, subh =
+          let _, entries =
             List.fold_left
-              (fun (j, acc2) sub ->
+              (fun (j, acc2) (entailment, entry) ->
                 ( j + 1,
-                  let entry = show_entry sub ~verbose in
+                  let entry = show_entry entry ~verbose in
                   let label =
-                    Printf.sprintf "%s%-10s %s┃" Colors.bold (case_no i j) Colors.reset
+                    Printf.sprintf "%s%-10s %s┃" Colors.bold (case_no i j) Colors.no_bold
                   in
-                  entry :: label :: acc2 ))
+                  let case =
+                    Printf.sprintf "%s%10s %s┃  %s" Colors.bold "INIT" Colors.no_bold
+                      (Colors.underline ^ show_entailment entailment ^ Colors.no_underline)
+                  in
+                  entry :: case :: label :: acc2 ))
               (1, []) l
           in
-          List.rev subh :: acc ))
+          List.rev entries :: acc ))
       (1, []) hist
   in
   String.concat "\n" (List.concat (List.rev output))

@@ -246,10 +246,6 @@ let tests =
        "t < 1 && {A}  |-  (t1 < 3 && t2 < 3) && {A} + ({A}#t2) : true";
        (* Strange constraints *)
        "(d>3 && t<d) && {A} # t  |-  (d>3 && t<d) && {A} # t : true";
-       (* multiple entailments *)
-       "True && {A}  |-  True && {A} || True && {B} : true";
-       "True && {A} || True && {B}  |-  True && {}  : true";
-       "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
        (* others *)
        {|
            (0≤t ⋀ t<d ⋀ tv1≥0 ⋀ tv2≥0 ⋀ tv1+tv2=t):
@@ -269,6 +265,10 @@ let tests =
        "t < 3: {Doing}* # t.{Done}  |-  u < 4: ({Doing} + {Other})* # u . {Done} : true";
        "t < 3: {A}* # t.{B} || True: {B}  |-  u < 4: {A}* # u.{B}  :: true";
        "True: {A}.{C}.B?.{D}  |-  True: {A}.B?.{D}  :: true"; *)
+    (* multiple entailments *)
+    "True && {A}  |-  True && {A} || True && {B} : true";
+    "True && {A} || True && {B}  |-  True && {}  : true";
+    "True && {A} || True && {B}  |-  True && {A} || True && {B} : true";
     (* Absent *)
     "(): {!C}   |-  (): {} :: true";
     (* Probabilities *)
