@@ -35,3 +35,5 @@ val filter_pi : (term -> term -> bool) -> pi -> pi option
 val trim_pi : pi -> term list -> pi
 
 val amend_constraints : effect -> effect
+
+val merge_first : first -> first -> first

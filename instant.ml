@@ -163,9 +163,12 @@ let ( |- ) a b =
   let contradict = a |> List.exists (fun x -> List.exists (contradicts x) b) in
   present && absent && not contradict
 
-(* tests *)
-let () =
-  assert ([] |- []);
-  assert ([ present "A" ] |- []);
-  assert ([ present "A" ] |- [ present "A" ]);
-  assert ([ present "A"; present "B" ] |- [ present "A" ])
+module Test = struct
+  let test_entail () =
+    assert ([] |- []);
+    assert ([ present "A" ] |- []);
+    assert ([ present "A" ] |- [ present "A" ]);
+    assert ([ present "A"; present "B" ] |- [ present "A" ])
+
+  let test () = print_endline "test_entail"; test_entail (); ()
+end

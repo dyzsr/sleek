@@ -17,7 +17,7 @@
   ast_print
   instant
   rewriting
-  proofctx
+  context
   checker
   history
   verifier
@@ -27,8 +27,13 @@
  (libraries z3))
 
 (executable
- (name main)
- (modules main)
+ (name tests)
+ (modules tests)
+ (libraries sleek))
+
+(executable
+ (name examples)
+ (modules examples)
  (libraries sleek))
 
 (env

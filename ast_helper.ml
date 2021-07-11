@@ -245,3 +245,14 @@ let amend_constraints (pi, tr) =
     | _                   -> ()
   in
   aux tr; (!pi, tr)
+
+let merge_first first1 first2 =
+  match (first1, first2) with
+  | Solid i1, Solid i2 -> Solid (Instant.merge i1 i2)
+  | PDist ks, Solid i | Solid i, PDist ks ->
+      PDist (List.map (fun (p, i') -> (p, Instant.merge i i')) ks)
+  | PDist ks1, PDist ks2 ->
+      PDist
+        (ks1
+        |> List.concat_map (fun (p1, i1) ->
+               ks2 |> List.map (fun (p2, i2) -> (p1 ** p2, Instant.merge i1 i2))))

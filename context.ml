@@ -5,11 +5,13 @@ type t = {
   term_gen : term_gen;
   mutable precond : pi;
   mutable postcond : pi;
+  mutable candidates : (first * first * pi) list list;
   mutable terms : term list;
   mutable entails : (trace * trace) list;
 }
 
-let make () = { term_gen = ref 0; precond = True; postcond = True; terms = []; entails = [] }
+let make () =
+  { term_gen = ref 0; precond = True; postcond = True; candidates = []; terms = []; entails = [] }
 let clone ctx = { ctx with term_gen = ctx.term_gen }
 
 let current_term_gen ctx = ctx.term_gen
@@ -90,6 +92,7 @@ let exists_entail lhs rhs ctx =
   List.exists (isomorphic (lhs, rhs)) ctx.entails
 
 let track_term term ctx = ctx.terms <- term :: ctx.terms
+let track_terms pi ctx = terms_of_pi pi |> List.iter (fun t -> ctx |> track_term t)
 let tracked_terms ctx =
   ctx.terms <- List.sort_uniq Stdlib.compare ctx.terms;
   ctx.terms
@@ -104,26 +107,26 @@ let add_postcond cond ctx =
   terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
   ctx.postcond <- cond &&* ctx.postcond
 
-let constraints ctx =
-  let precond = Utils.fixpoint ~f:normalize_pi ctx.precond in
-  let postcond = Utils.fixpoint ~f:normalize_pi ctx.postcond in
-  let constr = Utils.fixpoint ~f:normalize_pi (precond =>* postcond) in
-  ctx.precond <- precond;
-  ctx.postcond <- postcond;
-  constr
+let precond ctx = ctx.precond
+let postcond ctx = ctx.postcond
 
-let check_constraints ctx =
-  let precond = trim_pi ctx.precond (ctx |> tracked_terms) in
-  if not (Checker.sat precond) then
-    (false, "unsat precond")
+let add_candidates cand ctx = ctx.candidates <- cand :: ctx.candidates
+
+let candidate_combinations ctx =
+  let combs = Utils.combinations ctx.candidates in
+  if combs = [] then
+    [ ([], [], True) ]
   else
-    let constr = precond =>* ctx.postcond in
-    let constr = trim_pi constr (ctx |> tracked_terms) in
-    let hold = not (Checker.sat (Not constr)) in
-    if hold then
-      (true, "")
-    else
-      (false, "wrong postcond")
+    combs
+    |> List.map (fun comb ->
+           let ltrace, rtrace, cond =
+             comb
+             |> List.fold_left
+                  (fun (ltrace, rtrace, acc_cond) (lfirst, rfirst, cond) ->
+                    (lfirst :: ltrace, rfirst :: rtrace, cond &&* acc_cond))
+                  ([], [], True)
+           in
+           (List.rev ltrace, List.rev rtrace, cond))
 
 (* tests *)
 let () =

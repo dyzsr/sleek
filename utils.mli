@@ -11,3 +11,12 @@ val opt_map2 :
 val last : 'a list -> 'a
 val combinations : 'a list list -> 'a list list
 val zip : 'a list list -> 'a list list
+
+val roman : int -> string
+val case_no : int -> int -> string
+
+module Test : sig
+  val test_combinations : unit -> unit
+  val test_case_no : unit -> unit
+  val test : unit -> unit
+end

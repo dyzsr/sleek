@@ -1,39 +1,15 @@
 open Ast
 open Ast_helper
-open Ast_print
-
-type first =
-  | Solid of Instant.t  (** a solid element *)
-  | PDist of (term * Instant.t) list  (** a probability distribution *)
-
-let show_first = function
-  | Solid i  -> Colors.magenta ^ Instant.show i
-  | PDist ks ->
-      Colors.magenta' ^ "{" ^ Colors.magenta
-      ^ String.concat
-          (Colors.magenta' ^ " | " ^ Colors.magenta)
-          (List.map (fun (p, i) -> show_term p ^ " → " ^ Instant.show i) ks)
-      ^ Colors.magenta' ^ "}"
-
-let merge_first first1 first2 =
-  match (first1, first2) with
-  | Solid i1, Solid i2 -> Solid (Instant.merge i1 i2)
-  | PDist ks, Solid i | Solid i, PDist ks ->
-      PDist (List.map (fun (p, i') -> (p, Instant.merge i i')) ks)
-  | PDist ks1, PDist ks2 ->
-      PDist
-        (ks1
-        |> List.concat_map (fun (p1, i1) ->
-               ks2 |> List.map (fun (p2, i2) -> (p1 ** p2, Instant.merge i1 i2))))
 
 module Firsts = struct
   include List
 
   type t = first list
   let empty = []
-  let is_empty s = List.length s = 0
+  let is_empty t = List.length t = 0
   let singleton i = [ Solid i ]
-  let from_list l = List.sort_uniq Stdlib.compare l
+  let of_list l = List.sort_uniq Stdlib.compare l
+  let to_list t = t
   let union a b = a @ b |> List.sort_uniq Stdlib.compare
   let zip a b =
     a
@@ -42,24 +18,28 @@ module Firsts = struct
          empty
     |> List.sort_uniq Stdlib.compare
 
-  let () =
-    assert (
-      zip (singleton (Parsing.instant "{A}")) (singleton (Parsing.instant "{B}"))
-      = singleton (Parsing.instant "{A, B}"));
-    assert (
-      zip
-        (singleton (Parsing.instant "{A}"))
-        (singleton (Parsing.instant "{B}") @ singleton (Parsing.instant "{C}"))
-      = singleton (Parsing.instant "{A, B}") @ singleton (Parsing.instant "{A, C}"));
-    assert (
-      zip
-        (singleton Instant.empty @ singleton (Parsing.instant "{A}"))
-        (singleton Instant.empty @ singleton (Parsing.instant "{B}"))
-      = singleton Instant.empty
-        @ singleton (Parsing.instant "{A}")
-        @ singleton (Parsing.instant "{A, B}")
-        @ singleton (Parsing.instant "{B}"));
-    ()
+  module Test = struct
+    let test_zip () =
+      assert (
+        zip (singleton (Parsing.instant "{A}")) (singleton (Parsing.instant "{B}"))
+        = singleton (Parsing.instant "{A, B}"));
+      assert (
+        zip
+          (singleton (Parsing.instant "{A}"))
+          (singleton (Parsing.instant "{B}") @ singleton (Parsing.instant "{C}"))
+        = singleton (Parsing.instant "{A, B}") @ singleton (Parsing.instant "{A, C}"));
+      assert (
+        zip
+          (singleton Instant.empty @ singleton (Parsing.instant "{A}"))
+          (singleton Instant.empty @ singleton (Parsing.instant "{B}"))
+        = singleton Instant.empty
+          @ singleton (Parsing.instant "{A}")
+          @ singleton (Parsing.instant "{A, B}")
+          @ singleton (Parsing.instant "{B}"));
+      ()
+
+    let test () = print_endline "test_zip"; test_zip (); ()
+  end
 end
 
 open Firsts
@@ -152,7 +132,7 @@ let first tr =
                  else
                    Some (PDist dist))
         in
-        from_list firsts
+        of_list firsts
   in
   aux tr
 

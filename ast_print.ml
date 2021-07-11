@@ -73,6 +73,18 @@ let rec show_trace_with_prec lprec rprec = function
 
 let show_trace tr = Colors.cyan ^ show_trace_with_prec 0 0 tr
 
+let show_first = function
+  | Solid i  -> Colors.magenta ^ Instant.show i
+  | PDist ks ->
+      Colors.magenta' ^ "[" ^ Colors.magenta
+      ^ String.concat
+          (Colors.magenta' ^ " | " ^ Colors.magenta)
+          (List.map (fun (p, i) -> show_term p ^ "→" ^ Instant.show i) ks)
+      ^ Colors.magenta' ^ "]"
+
+let show_path path =
+  path |> List.map (fun first -> show_first first) |> String.concat (Colors.yellow ^ " · ")
+
 let show_effect (pi, trace) = Printf.sprintf "%s: %s" (show_pi pi) (show_trace trace)
 
 let show_effects l =

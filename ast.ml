@@ -34,6 +34,12 @@ type trace =
   | Kleene   of trace
   | PCases   of (term * trace) list
 
+type first =
+  | Solid of Instant.t  (** a solid element *)
+  | PDist of (term * Instant.t) list  (** a probability distribution *)
+
+type path = first list
+
 type effect = pi * trace
 type effects = effect list
 

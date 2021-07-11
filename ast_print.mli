@@ -6,6 +6,10 @@ val show_pi : pi -> string
 
 val show_trace : trace -> string
 
+val show_first : first -> string
+
+val show_path : path -> string
+
 val show_effect : effect -> string
 
 val show_effects : effects -> string

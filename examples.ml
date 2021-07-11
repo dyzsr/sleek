@@ -1,3 +1,6 @@
+open Sleek
+
+(* Major tests *)
 let tests =
   [
     (* Single Instant *)
@@ -330,12 +333,15 @@ let tests =
     "(): {A}.[0.5 -> {B}.[0.5 -> {C} | 0.5 -> emp] | 0.5 -> emp] |- (): [0.25 -> {}*.{C} | 0.75 -> {}*] :: false";
     "(): {A}.[0.5 -> {B}.[0.5 -> {C} | 0.5 -> emp] | 0.5 -> {}]  |- (): [0.25 -> {}*.{C} | 0.75 -> {}*] :: true";
     "(): {A}.[0.5 -> {B}.[0.5 -> {C} | 0.5 -> emp] | 0.5 -> emp] |- (): [0.75 -> {}*.{C} | 0.25 -> {}*] :: false";
+    "(): [0.5 -> {A} | 0.5 -> {B}]*  |-  (): [p -> {A} | q -> {B}]* :: true";
+    "(): [0.5 -> {A} | 0.5 -> {B}]*  |-  (): [p -> {A} | q -> {}]* :: true";
+    "(): [0.5 -> {A} | 0.5 -> {B}]*  |-  (): [p -> {A}* | q -> {}*] :: true";
   ]
 
 let () =
   tests
   |> List.iteri (fun no str ->
-         let case = Sleek.specification str in
-         let correct, verdict, history = Sleek.verify_specification case in
-         Sleek.show_verification ~case ~no ~verdict ~verbose:(not correct) ~history |> print_endline;
+         let case = specification str in
+         let correct, verdict, history = verify_specification case in
+         show_verification ~case ~no ~verdict ~verbose:(not correct) ~history |> print_endline;
          assert correct)
