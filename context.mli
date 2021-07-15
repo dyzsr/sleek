@@ -6,7 +6,7 @@ val make : unit -> t
 
 val clone : t -> t
 
-val current_term_gen : t -> Ast_helper.term_gen
+val current_term_gen : t -> Astutils.term_gen
 val next_term : t -> term
 
 val replace_constants : effect -> t -> effect

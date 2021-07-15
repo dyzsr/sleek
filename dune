@@ -13,8 +13,7 @@
   parser
   parsing
   ast
-  ast_helper
-  ast_print
+  astutils
   instant
   rewriting
   context

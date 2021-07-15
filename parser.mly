@@ -1,6 +1,6 @@
 %{
   open Ast
-  open Ast_helper
+  open Astutils
 %}
 
 %token EOF              "eof"

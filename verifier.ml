@@ -1,5 +1,4 @@
-open Ast_helper
-open Ast_print
+open Astutils
 
 let verify_entailment (lhs, rhs) =
   let preprocess ctx lhs rhs =
