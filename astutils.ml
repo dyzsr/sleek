@@ -76,16 +76,32 @@ let rec show_trace_with_prec lprec rprec = function
 let show_trace tr = Colors.cyan ^ show_trace_with_prec 0 0 tr
 
 let show_first = function
+  | Null    -> Colors.magenta ^ "𝝐"
   | Solid i -> Colors.magenta ^ Instant.show i
   | PDist d ->
       Colors.magenta' ^ "[" ^ Colors.magenta
       ^ String.concat
           (Colors.magenta' ^ " | " ^ Colors.magenta)
-          (List.map (fun (p, i) -> show_term p ^ "→" ^ Instant.show i) d)
+          (List.map
+             (function
+               | p, Some i -> show_term p ^ "→" ^ Instant.show i
+               | p, None   -> show_term p ^ "→𝝐")
+             d)
       ^ Colors.magenta' ^ "]"
 
 let show_path path =
   path |> List.map (fun first -> show_first first) |> String.concat (Colors.yellow ^ " · ")
+
+let show_track =
+  let show_list is = if is = [] then "𝝐" else List.map Instant.show is |> String.concat "·" in
+  function
+  | SolidTrack is -> Colors.magenta ^ show_list is
+  | PDistTrack d  ->
+      Colors.magenta' ^ "[" ^ Colors.magenta
+      ^ String.concat
+          (Colors.magenta' ^ " | " ^ Colors.magenta)
+          (List.map (fun (p, is) -> show_term p ^ "→" ^ show_list is) d)
+      ^ Colors.magenta' ^ "]"
 
 let show_effect (pi, trace) = Printf.sprintf "%s: %s" (show_pi pi) (show_trace trace)
 
@@ -140,7 +156,7 @@ let vars_of_term t =
   let rec aux acc = function
     | Const _ -> acc
     | Var v -> v :: acc
-    | Gen n -> ("@" ^ string_of_int n) :: acc
+    | Gen n -> ("v" ^ string_of_int n ^ "'") :: acc
     | Add (t1, t2) | Sub (t1, t2) | Mul (t1, t2) -> aux (aux acc t1) t2
     | Neg t -> aux acc t
   in
@@ -265,23 +281,117 @@ let rec nullable = function
 
 let merge_first first1 first2 =
   match (first1, first2) with
+  | Null, first | first, Null -> first
   | Solid i1, Solid i2 -> Solid (Instant.merge i1 i2)
   | PDist d, Solid i | Solid i, PDist d ->
-      PDist (List.map (fun (p, i') -> (p, Instant.merge i i')) d)
+      PDist
+        (List.map
+           (function
+             | p, Some i' -> (p, Some (Instant.merge i i'))
+             | p, None    -> (p, Some i))
+           d)
   | PDist d1, PDist d2 ->
       PDist
         (d1
         |> List.concat_map (fun (p1, i1) ->
-               d2 |> List.map (fun (p2, i2) -> (p1 ** p2, Instant.merge i1 i2))))
+               d2
+               |> List.map (fun (p2, i2) ->
+                      ( p1 ** p2,
+                        match (i1, i2) with
+                        | Some i1, Some i2 -> Some (Instant.merge i1 i2)
+                        | Some i1, None    -> Some i1
+                        | None, Some i2    -> Some i2
+                        | None, None       -> None ))))
 
-let ( |= ) first1 first2 =
-  let open Instant in
-  match (first1, first2) with
-  | Solid i, Solid j   -> i |- j
-  | PDist d, Solid j   -> List.exists (fun (_, i) -> i |- j) d
-  | Solid i, PDist d   -> List.exists (fun (_, j) -> i |- j) d
-  | PDist d1, PDist d2 ->
-      d1 |> List.for_all (fun (_, i) -> d2 |> List.exists (fun (_, j) -> i |- j))
+let empty_track = SolidTrack []
+
+let cons_track first track =
+  match (first, track) with
+  | Null, track             -> track
+  | Solid i, SolidTrack js  -> SolidTrack (i :: js)
+  | PDist d, SolidTrack js  ->
+      PDistTrack
+        (d
+        |> List.map (function
+             | p, Some i -> (p, i :: js)
+             | p, None   -> (p, js)))
+  | Solid i, PDistTrack d   -> PDistTrack (d |> List.map (fun (p, js) -> (p, i :: js)))
+  | PDist d1, PDistTrack d2 ->
+      let subset p1 p2 =
+        let vars1 = vars_of_term p1 in
+        let vars2 = vars_of_term p2 in
+        vars1 |> List.for_all (fun v -> vars2 |> List.exists (( = ) v))
+      in
+      let union p1 p2 =
+        let vars1 = vars_of_term p1 in
+        let vars2 = vars_of_term p2 in
+        let vars = List.sort_uniq String.compare (vars1 @ vars2) in
+        vars |> List.fold_left (fun acc v -> acc ** Var v) (Const 1.)
+      in
+      if
+        d1
+        |> List.for_all (fun (p1, _) ->
+               d2 |> List.exists (fun (p2, _) -> subset p1 p2 || subset p2 p1))
+      then
+        PDistTrack
+          (d1
+          |> List.concat_map (fun (p1, i) ->
+                 d2
+                 |> List.filter_map (fun (p2, js) ->
+                        if subset p1 p2 then
+                          match i with
+                          | Some i -> Some (p2, i :: js)
+                          | None   -> Some (p2, js)
+                        else if subset p2 p1 then
+                          match i with
+                          | Some i -> Some (p1, i :: js)
+                          | None   -> Some (p1, js)
+                        else
+                          None)))
+      else if
+        d1
+        |> List.exists (fun (p1, _) ->
+               d2 |> List.exists (fun (p2, _) -> subset p1 p2 || subset p2 p1))
+      then
+        PDistTrack
+          (d1
+          |> List.concat_map (fun (p1, i) ->
+                 let d =
+                   d2
+                   |> List.filter_map (fun (p2, js) ->
+                          if subset p1 p2 then
+                            match i with
+                            | Some i -> Some (p2, i :: js)
+                            | None   -> Some (p2, js)
+                          else if subset p2 p1 then
+                            match i with
+                            | Some i -> Some (p1, i :: js)
+                            | None   -> Some (p1, js)
+                          else
+                            None)
+                 in
+                 if d2 |> List.exists (fun (p2, _) -> not (subset p1 p2 || subset p2 p1)) then
+                   match i with
+                   | Some i -> (p1, [ i ]) :: d
+                   | None   -> (p1, []) :: d
+                 else
+                   d))
+      else
+        PDistTrack
+          (d1
+          |> List.concat_map (fun (p1, i) ->
+                 d2
+                 |> List.map (fun (p2, js) ->
+                        match i with
+                        | Some i -> (union p1 p2, i :: js)
+                        | None   -> (union p1 p2, js))))
+
+let track_of_path path =
+  let rec fold = function
+    | []            -> empty_track
+    | first :: rest -> cons_track first (fold rest)
+  in
+  fold path
 
 (* misc *)
 
@@ -358,22 +468,11 @@ let rec normalize_trace : trace -> trace = function
   | PCases ks -> PCases (List.map (fun (p, tr) -> (normalize_term p, normalize_trace tr)) ks)
   | tr -> tr
 
-let normalize = function
+let normalize_effect = function
   | False, _  -> (False, Bottom)
   | _, Bottom -> (False, Bottom)
   | pi, tr    -> (normalize_pi pi, normalize_trace tr)
 
-let amend_constraints (pi, tr) =
-  let pi = ref pi in
-  let rec aux = function
-    | PCases ks           ->
-        let total_p = List.fold_left (fun acc (p, tr) -> aux tr; p +* acc) (Const 0.) ks in
-        let cond = total_p =* Const 1. in
-        pi := cond &&* !pi
-    | Sequence (tr1, tr2) -> aux tr1; aux tr2
-    | Union (tr1, tr2)    -> aux tr1; aux tr2
-    | Parallel (tr1, tr2) -> aux tr1; aux tr2
-    | Kleene tr           -> aux tr
-    | _                   -> ()
-  in
-  aux tr; (!pi, tr)
+let normalize_track = function
+  | PDistTrack d -> PDistTrack (d |> List.map (fun (p, is) -> (normalize_term p, is)))
+  | tk           -> tk

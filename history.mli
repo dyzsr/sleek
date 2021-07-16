@@ -10,8 +10,8 @@ val add_unfolding : entry -> entry -> unit
 
 val set_first : first -> entry -> unit
 val set_terms : term list -> entry -> unit
-val set_success : first list -> first list -> pi -> entry -> unit
-val add_failure : first list -> first list -> pi -> entry -> unit
+val set_success : track -> track -> pi -> entry -> unit
+val add_failure : track -> track -> pi -> entry -> unit
 val set_verdict : bool -> entry -> unit
 
 type t

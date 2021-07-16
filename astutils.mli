@@ -6,6 +6,7 @@ val show_pi : pi -> string
 val show_trace : trace -> string
 val show_first : first -> string
 val show_path : path -> string
+val show_track : track -> string
 val show_effect : effect -> string
 val show_effects : effects -> string
 val show_entail : entail -> string
@@ -44,14 +45,13 @@ val is_bot : trace -> bool
 val is_null : trace -> bool
 val nullable : trace -> bool
 
-(* first and path *)
+(* first, path, and track *)
 val merge_first : first -> first -> first
-val ( |= ) : first -> first -> bool
+val track_of_path : path -> track
 
 (* misc *)
 val normalize_term : term -> term
 val normalize_pi : pi -> pi
 val normalize_trace : trace -> trace
-val normalize : effect -> effect
-
-val amend_constraints : effect -> effect
+val normalize_effect : effect -> effect
+val normalize_track : track -> track

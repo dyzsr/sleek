@@ -19,4 +19,5 @@ module Test = struct
   let test_utils = Utils.Test.test
   let test_instant = Instant.Test.test
   let test_firsts = Rewriting.Firsts.Test.test
+  let test_context = Context.Test.test
 end

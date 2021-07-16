@@ -1,3 +1,12 @@
+module IntSet = Set.Make (Int)
+
+let id_gen = ref 0
+
+let next_id () =
+  let id = !id_gen in
+  id_gen := id + 1;
+  id
+
 let fixpoint ~f ?(iter = fun _ -> ()) ?(stop = fun _ -> ()) init =
   let rec loop cur =
     let next = f cur in

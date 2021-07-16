@@ -6,8 +6,8 @@ type entry = {
   mutable steps : (string * entail) list;
   mutable children : entry list;
   mutable terms : term list option;
-  mutable success : (first list * first list * pi) option;
-  mutable failure : (first list * first list * pi) list;
+  mutable success : (track * track * pi) option;
+  mutable failure : (track * track * pi) list;
   mutable verdict : bool option;
 }
 
@@ -32,9 +32,9 @@ let set_first first ent = ent.first <- Some first
 
 let set_terms terms ent = if List.length terms > 0 then ent.terms <- Some terms
 
-let set_success lpath rpath cond ent = ent.success <- Some (lpath, rpath, cond)
+let set_success ltrack rtrack cond ent = ent.success <- Some (ltrack, rtrack, cond)
 
-let add_failure lpath rpath cond ent = ent.failure <- (lpath, rpath, cond) :: ent.failure
+let add_failure ltrack rtrack cond ent = ent.failure <- (ltrack, rtrack, cond) :: ent.failure
 
 let set_verdict verdict ent = ent.verdict <- Some verdict
 
@@ -104,26 +104,40 @@ let show_entry ent ~verbose =
       else
         id
     in
-    let show_paths =
-      match ent.success with
-      | Some (lpath, rpath, cond) ->
-          let lpath = show_path lpath in
-          let rpath = show_path rpath in
-          List.cons
-            (print "+" (Printf.sprintf "%s  %s⊑  %s" lpath Colors.yellow rpath)
-            ^ "\n"
-            ^ print "$" (Printf.sprintf "%s" (show_pi cond)))
-      | None                      ->
-          List.append
-            (ent.failure
-            |> List.map (fun (lpath, rpath, cond) ->
-                   let lpath = show_path lpath in
-                   let rpath = show_path rpath in
-                   print "-" (Printf.sprintf "%s  %s⋢  %s" lpath Colors.yellow rpath)
-                   ^ "\n"
-                   ^ print "$" (Printf.sprintf "%s" (show_pi cond))))
+    let show_success (ltrack, rtrack, cond) =
+      let ltrack = show_track ltrack in
+      let rtrack = show_track rtrack in
+      print "+" (Printf.sprintf "%s  %s⊑  %s" ltrack Colors.yellow rtrack)
+      ^
+      if cond = True || cond = False then
+        ""
+      else
+        "\n" ^ print "$" (Printf.sprintf "%s" (show_pi cond))
     in
-    [] |> show_firsts |> show_steps |> show_terms |> show_paths |> show_children |> List.rev
+    let show_failure () =
+      ent.failure
+      |> List.map (fun (ltrack, rtrack, cond) ->
+             let ltrack = show_track ltrack in
+             let rtrack = show_track rtrack in
+             print "-" (Printf.sprintf "%s  %s⋢  %s" ltrack Colors.yellow rtrack)
+             ^
+             if cond = True || cond = False then
+               ""
+             else
+               "\n" ^ print "$" (Printf.sprintf "%s" (show_pi cond)))
+    in
+    let show_tracks =
+      if verbose then
+        match ent.success with
+        | Some (ltrack, rtrack, cond) ->
+            List.append (show_success (ltrack, rtrack, cond) :: show_failure ())
+        | None                        -> List.append (show_failure ())
+      else
+        match ent.success with
+        | Some (ltrack, rtrack, cond) -> List.cons (show_success (ltrack, rtrack, cond))
+        | None                        -> List.append (show_failure ())
+    in
+    [] |> show_firsts |> show_steps |> show_terms |> show_tracks |> show_children |> List.rev
     |> String.concat "\n"
   in
   aux "" "" ent

@@ -9,6 +9,7 @@ module Firsts : sig
   val to_list : t -> first list
   val union : t -> t -> t
   val zip : t -> t -> t
+  val remove_null : t -> t
   val exists : (first -> bool) -> t -> bool
   val for_all : (first -> bool) -> t -> bool
 
@@ -18,6 +19,6 @@ module Firsts : sig
   end
 end
 
-val unify : first -> first -> bool * pi
+val unify : track -> track -> bool * pi
 val first : trace -> Firsts.t
 val derivative : first -> trace -> trace

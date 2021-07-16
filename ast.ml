@@ -35,10 +35,15 @@ type trace =
   | PCases   of (term * trace) list
 
 type first =
+  | Null
   | Solid of Instant.t  (** a solid element *)
-  | PDist of (term * Instant.t) list  (** a probability distribution *)
+  | PDist of (term * Instant.t option) list  (** probability distribution *)
 
 type path = first list
+
+type track =
+  | SolidTrack of Instant.t list
+  | PDistTrack of (term * Instant.t list) list
 
 type effect = pi * trace
 type effects = effect list

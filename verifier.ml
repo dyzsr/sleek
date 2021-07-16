@@ -2,17 +2,15 @@ open Astutils
 
 let verify_entailment (lhs, rhs) =
   let preprocess ctx lhs rhs =
-    let lhs = ctx |> Context.replace_constants lhs in
-    let rhs = ctx |> Context.replace_constants rhs in
-    let lhs = amend_constraints lhs in
-    let rhs = amend_constraints rhs in
+    let lhs = ctx |> Context.fix_effect lhs in
+    let rhs = ctx |> Context.fix_effect rhs in
     (* build constraints *)
     let pre, tr1 = lhs in
     let post, tr2 = rhs in
     let pre = Utils.fixpoint ~f:normalize_pi pre in
     let post = Utils.fixpoint ~f:normalize_pi post in
-    ctx |> Context.set_precond pre;
-    ctx |> Context.set_postcond post;
+    ctx |> Context.add_precond pre;
+    ctx |> Context.add_postcond post;
     let lhs = (pre, tr1) in
     let rhs = (post, tr2) in
     (lhs, rhs)
@@ -47,8 +45,8 @@ let verify_entailment (lhs, rhs) =
         (false, true)
       else (
         ctx |> Context.add_entail lhs rhs;
-        let lfirsts = Rewriting.first lhs in
-        let rfirsts = Rewriting.first rhs in
+        let lfirsts = Rewriting.first lhs |> Rewriting.Firsts.remove_null in
+        let rfirsts = Rewriting.first rhs |> Rewriting.Firsts.remove_null in
         let verdict =
           lfirsts
           |> Rewriting.Firsts.for_all (fun lfirst ->
@@ -56,14 +54,7 @@ let verify_entailment (lhs, rhs) =
                  let deriv1 = Rewriting.derivative lfirst lhs in
                  let deriv2 = Rewriting.derivative lfirst rhs in
                  let candidates =
-                   rfirsts |> Rewriting.Firsts.to_list
-                   |> List.filter_map (fun rfirst ->
-                          let can_unify, cond = Rewriting.unify lfirst rfirst in
-                          if can_unify then (
-                            ctx |> Context.track_terms cond;
-                            Some (lfirst, rfirst, cond))
-                          else
-                            None)
+                   rfirsts |> Rewriting.Firsts.to_list |> List.map (fun rfirst -> (lfirst, rfirst))
                  in
                  ctx |> Context.add_candidates candidates;
                  let verdict, sub_hist = aux ctx ~first:lfirst deriv1 deriv2 in
@@ -79,34 +70,42 @@ let verify_entailment (lhs, rhs) =
           let success, failure =
             candidates
             |> List.fold_left
-                 (fun (success, failure) (lpath, rpath, cond) ->
-                   if success <> None then
-                     (success, failure)
+                 (fun (success, failure) (lpath, rpath) ->
+                   let ltrack = track_of_path lpath |> Utils.fixpoint ~f:normalize_track in
+                   let rtrack = track_of_path rpath |> Utils.fixpoint ~f:normalize_track in
+                   let res, cond = Rewriting.unify ltrack rtrack in
+                   let cond = Utils.fixpoint ~f:normalize_pi cond in
+                   let ctx = ctx |> Context.clone in
+                   ctx |> Context.track_terms cond;
+                   if not res then
+                     (success, (ltrack, rtrack, cond) :: failure)
                    else
                      let precond = cond &&* (ctx |> Context.precond) in
                      let precond = trim_pi precond (ctx |> Context.tracked_terms) in
                      if not (Checker.sat precond) then
                        let precond = Utils.fixpoint ~f:normalize_pi precond in
-                       (success, (lpath, rpath, precond) :: failure)
+                       (success, (ltrack, rtrack, precond) :: failure)
                      else
                        let constr = precond =>* postcond in
                        let constr = trim_pi constr (ctx |> Context.tracked_terms) in
                        let constr = Utils.fixpoint ~f:normalize_pi constr in
                        if not (Checker.sat (Not constr)) then (* success *)
-                         (Some (lpath, rpath, constr), failure)
+                         (Some (ltrack, rtrack, constr), failure)
                        else (* failure *)
-                         (success, (lpath, rpath, constr) :: failure))
+                         (success, (ltrack, rtrack, constr) :: failure))
                  (None, [])
           in
+          hist
+          |> History.set_terms
+               (ctx |> Context.tracked_terms |> List.map (Utils.fixpoint ~f:normalize_term));
+          failure
+          |> List.iter (fun (ltrack, rtrack, cond) ->
+                 hist |> History.add_failure ltrack rtrack cond);
           match success with
-          | Some (lpath, rpath, cond) ->
-              hist |> History.set_success lpath rpath cond;
+          | Some (ltrack, rtrack, cond) ->
+              hist |> History.set_success ltrack rtrack cond;
               true
-          | None                      ->
-              failure
-              |> List.iter (fun (lpath, rpath, cond) ->
-                     hist |> History.add_failure lpath rpath cond);
-              false)
+          | None                        -> false)
     in
     (* Verify *)
     let lhs, rhs = normalize lhs rhs in

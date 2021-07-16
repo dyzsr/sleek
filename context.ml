@@ -5,7 +5,7 @@ type t = {
   term_gen : term_gen;
   mutable precond : pi;
   mutable postcond : pi;
-  mutable candidates : (first * first * pi) list list;
+  mutable candidates : (first * first) list list;
   mutable terms : term list;
   mutable entails : (trace * trace) list;
 }
@@ -16,29 +16,6 @@ let clone ctx = { ctx with term_gen = ctx.term_gen }
 
 let current_term_gen ctx = ctx.term_gen
 let next_term ctx = next_term ctx.term_gen
-
-let replace_constants (pi, tr) ctx =
-  let pi = ref pi in
-  let rec aux = function
-    | PCases ks           ->
-        PCases
-          (List.map
-             (function
-               | Const v, tr ->
-                   let p = ctx |> next_term in
-                   let cond = p =* Const v in
-                   pi := cond &&* !pi;
-                   (p, aux tr)
-               | p, tr       -> (p, aux tr))
-             ks)
-    | Sequence (tr1, tr2) -> Sequence (aux tr1, aux tr2)
-    | Union (tr1, tr2)    -> Union (aux tr1, aux tr2)
-    | Parallel (tr1, tr2) -> Parallel (aux tr1, aux tr2)
-    | Kleene tr           -> Kleene (aux tr)
-    | tr                  -> tr
-  in
-  let tr = aux tr in
-  (!pi, tr)
 
 let add_entail lhs rhs ctx =
   let entails =
@@ -97,14 +74,11 @@ let tracked_terms ctx =
   ctx.terms <- List.sort_uniq Stdlib.compare ctx.terms;
   ctx.terms
 
-let set_precond cond ctx = ctx.precond <- cond
-let set_postcond cond ctx = ctx.postcond <- cond
-
 let add_precond cond ctx =
-  terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
+  (* terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t); *)
   ctx.precond <- cond &&* ctx.precond
 let add_postcond cond ctx =
-  terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t);
+  (* terms_of_pi cond |> List.iter (fun t -> ctx |> track_term t); *)
   ctx.postcond <- cond &&* ctx.postcond
 
 let precond ctx = ctx.precond
@@ -115,27 +89,56 @@ let add_candidates cand ctx = ctx.candidates <- cand :: ctx.candidates
 let candidate_combinations ctx =
   let combs = Utils.combinations ctx.candidates in
   if combs = [] then
-    [ ([], [], True) ]
+    [ ([], []) ]
   else
     combs
     |> List.map (fun comb ->
-           let ltrace, rtrace, cond =
+           let ltrace, rtrace =
              comb
              |> List.fold_left
-                  (fun (ltrace, rtrace, acc_cond) (lfirst, rfirst, cond) ->
-                    (lfirst :: ltrace, rfirst :: rtrace, cond &&* acc_cond))
-                  ([], [], True)
+                  (fun (ltrace, rtrace) (lfirst, rfirst) -> (lfirst :: ltrace, rfirst :: rtrace))
+                  ([], [])
            in
-           (List.rev ltrace, List.rev rtrace, cond))
+           (List.rev ltrace, List.rev rtrace))
+
+let fix_effect (pi, tr) ctx =
+  let pi = ref pi in
+  let rec aux = function
+    | PCases ks           ->
+        let ks =
+          ks
+          |> List.map (fun (p, tr) ->
+                 let q = ctx |> next_term in
+                 (match p with
+                 | Const v -> pi := q =* Const v &&* !pi
+                 | p       -> ctx |> add_precond (q =* p));
+                 (q, aux tr))
+        in
+        let p_sum = List.fold_left (fun acc (q, _) -> q +* acc) (Const 0.) ks in
+        let cond = p_sum =* Const 1. in
+        pi := cond &&* !pi;
+        PCases ks
+    | Sequence (tr1, tr2) -> Sequence (aux tr1, aux tr2)
+    | Union (tr1, tr2)    -> Union (aux tr1, aux tr2)
+    | Parallel (tr1, tr2) -> Parallel (aux tr1, aux tr2)
+    | Kleene tr           -> Kleene (aux tr)
+    | tr                  -> tr
+  in
+  let tr = aux tr in
+  (!pi, tr)
 
 (* tests *)
-let () =
-  let ctx = make () in
-  ctx |> add_entail (Parsing.trace "{A}") (Parsing.trace "{}");
-  assert (ctx |> exists_entail (Parsing.trace "{A}") (Parsing.trace "{}"));
-  ctx |> add_entail (Parsing.trace "{B}") (Parsing.trace "{A}");
-  ctx |> add_entail (Parsing.trace "{A, B}") (Parsing.trace "{B}");
-  assert (ctx |> exists_entail (Parsing.trace "{B}") (Parsing.trace "{}"));
-  assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{}"));
-  assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{A}"));
-  ()
+module Test = struct
+  let test_entail () =
+    let ctx = make () in
+    ctx |> add_entail (Parsing.trace "{A}") (Parsing.trace "{}");
+    assert (ctx |> exists_entail (Parsing.trace "{A}") (Parsing.trace "{}"));
+    ctx |> add_entail (Parsing.trace "{B}") (Parsing.trace "{A}");
+    ctx |> add_entail (Parsing.trace "{A, B}") (Parsing.trace "{B}");
+    assert (ctx |> exists_entail (Parsing.trace "{B}") (Parsing.trace "{}"));
+    assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{}"));
+    assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{A}"));
+    ()
+
+  let test () = print_endline "test_entail"; test_entail (); ()
+end
