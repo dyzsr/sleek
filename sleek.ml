@@ -6,13 +6,13 @@ module History = History
 module Rewriting = Rewriting
 module Context = Context
 module Instant = Instant
-module Parsing = Parsing
+module Parse = Parse
 module Utils = Utils
 module Verifier = Verifier
 
 include Ast
 include Astutils
-include Parsing
+include Parse
 include Verifier
 
 module Test = struct

@@ -131,13 +131,13 @@ let fix_effect (pi, tr) ctx =
 module Test = struct
   let test_entail () =
     let ctx = make () in
-    ctx |> add_entail (Parsing.trace "{A}") (Parsing.trace "{}");
-    assert (ctx |> exists_entail (Parsing.trace "{A}") (Parsing.trace "{}"));
-    ctx |> add_entail (Parsing.trace "{B}") (Parsing.trace "{A}");
-    ctx |> add_entail (Parsing.trace "{A, B}") (Parsing.trace "{B}");
-    assert (ctx |> exists_entail (Parsing.trace "{B}") (Parsing.trace "{}"));
-    assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{}"));
-    assert (ctx |> exists_entail (Parsing.trace "{A, B}") (Parsing.trace "{A}"));
+    ctx |> add_entail (Parse.trace "{A}") (Parse.trace "{}");
+    assert (ctx |> exists_entail (Parse.trace "{A}") (Parse.trace "{}"));
+    ctx |> add_entail (Parse.trace "{B}") (Parse.trace "{A}");
+    ctx |> add_entail (Parse.trace "{A, B}") (Parse.trace "{B}");
+    assert (ctx |> exists_entail (Parse.trace "{B}") (Parse.trace "{}"));
+    assert (ctx |> exists_entail (Parse.trace "{A, B}") (Parse.trace "{}"));
+    assert (ctx |> exists_entail (Parse.trace "{A, B}") (Parse.trace "{A}"));
     ()
 
   let test () = print_endline "test_entail"; test_entail (); ()

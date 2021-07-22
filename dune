@@ -11,7 +11,7 @@
  (modules
   lexer
   parser
-  parsing
+  parse
   ast
   astutils
   instant

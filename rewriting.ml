@@ -22,21 +22,21 @@ module Firsts = struct
   module Test = struct
     let test_zip () =
       assert (
-        zip (singleton (Parsing.instant "{A}")) (singleton (Parsing.instant "{B}"))
-        = singleton (Parsing.instant "{A, B}"));
+        zip (singleton (Parse.instant "{A}")) (singleton (Parse.instant "{B}"))
+        = singleton (Parse.instant "{A, B}"));
       assert (
         zip
-          (singleton (Parsing.instant "{A}"))
-          (singleton (Parsing.instant "{B}") @ singleton (Parsing.instant "{C}"))
-        = singleton (Parsing.instant "{A, B}") @ singleton (Parsing.instant "{A, C}"));
+          (singleton (Parse.instant "{A}"))
+          (singleton (Parse.instant "{B}") @ singleton (Parse.instant "{C}"))
+        = singleton (Parse.instant "{A, B}") @ singleton (Parse.instant "{A, C}"));
       assert (
         zip
-          (singleton Instant.empty @ singleton (Parsing.instant "{A}"))
-          (singleton Instant.empty @ singleton (Parsing.instant "{B}"))
+          (singleton Instant.empty @ singleton (Parse.instant "{A}"))
+          (singleton Instant.empty @ singleton (Parse.instant "{B}"))
         = singleton Instant.empty
-          @ singleton (Parsing.instant "{A}")
-          @ singleton (Parsing.instant "{A, B}")
-          @ singleton (Parsing.instant "{B}"));
+          @ singleton (Parse.instant "{A}")
+          @ singleton (Parse.instant "{A, B}")
+          @ singleton (Parse.instant "{B}"));
       ()
 
     let test () = print_endline "test_zip"; test_zip (); ()
