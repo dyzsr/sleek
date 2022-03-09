@@ -12,7 +12,7 @@ val absent : string -> event
 val is_present : event -> bool
 
 (* Type of signals *)
-type t
+type t = event list 
 
 val isEventExist : event -> t -> bool
 

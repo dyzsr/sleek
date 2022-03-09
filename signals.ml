@@ -22,9 +22,9 @@ let rec isEventExist ev ins : bool =
 let rec controdicts ins = 
   match ins with 
   | [] -> false 
-  | Present s :: xs -> if isEventExist (Absent s) xs then true else controdicts xs
+  | Present s :: xs -> if (isEventExist (Absent s) xs || isEventExist (Undef s) xs) then true else controdicts xs
   | Absent s :: xs -> if isEventExist (Present s) xs then true else controdicts xs
-  | Undef _ :: xs -> controdicts xs
+  | Undef s :: xs -> if isEventExist (Present s) xs then true else controdicts xs
   ;;
 
 

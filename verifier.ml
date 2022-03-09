@@ -28,14 +28,15 @@ let verify_simple_entailment (Ast.SimpleEntail { lhs; rhs }) =
     and normal lhs rhs =
       let lhs =
         Utils.fixpoint ~f:Ast_helper.normalize
-          ~fn_iter:(fun es ->
-            hist |> History.add_iteration ("NORM-LHS", SimpleEntail { lhs = es; rhs }))
+          ~fn_iter:(fun _ ->  ())
+          (*fun es ->
+            hist |> History.add_iteration ("NORM-LHS", SimpleEntail { lhs = es; rhs })*)
           lhs
       in
       let rhs =
         Utils.fixpoint ~f:Ast_helper.normalize
-          ~fn_iter:(fun es ->
-            hist |> History.add_iteration ("NORM-RHS", SimpleEntail { lhs; rhs = es }))
+          ~fn_iter:(fun _ ->  ()) (*fun es ->
+            hist |> History.add_iteration ("NORM-RHS", SimpleEntail { lhs; rhs = es })*)
           rhs
       in
       (lhs, rhs)
